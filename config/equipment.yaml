@@ -16,7 +16,7 @@ buses:
 
 item_sets:
   brine: &brine
-    - {key: salinity, name: 염도, reg: IR30001, type: uint16, scale: 0.01, unit: PCT, data_type: 염도, range: [0, 30], max_step: 3}
+    - {key: salinity, name: 염도, reg: IR30001, type: uint16, scale: 0.01, unit: PCT, data_type: 염도, range: [0, 30]}  # 급변 기준 없음: 측정 통이 바뀌면 목표 염도(9↔13 %)만큼 뛴다 (D-014)
     - {key: water_temp, name: 염수온도, reg: IR30002, type: int16, scale: 0.1, unit: DEGC, data_type: 온도, range: [-10, 50]}
     - {key: tank_no, name: 측정절임통, reg: IR30003, type: uint16, scale: 1, unit: "NO", data_type: 위치, range: [1, 8]}
     - {key: sensor_state, name: 센서상태, reg: IR30004, type: uint16, scale: 1, unit: CODE, data_type: 상태}

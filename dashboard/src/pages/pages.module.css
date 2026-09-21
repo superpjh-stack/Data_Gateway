@@ -1,0 +1,259 @@
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--gap);
+  align-items: start;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--gap);
+}
+
+.statusList {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  font-size: 0.9rem;
+}
+
+/* 공정 현황 */
+.flow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.proc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 160px;
+}
+
+.procHead {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+}
+
+.procArrow {
+  color: var(--border);
+}
+
+.equipCard {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.equipCard:hover {
+  border-color: var(--accent);
+}
+
+.equipBad {
+  composes: equipCard;
+  border-color: var(--down);
+}
+
+.equipTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.code {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.tanks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tank {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  font-size: 0.82rem;
+}
+
+.tankAlarm {
+  composes: tank;
+  border-color: var(--delay);
+}
+
+.tankNo {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* PLC 메모리 */
+.memGrid {
+  display: grid;
+  grid-template-columns: 70px repeat(10, minmax(0, 1fr));
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.memHead {
+  color: var(--text-dim);
+  padding: 3px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.memAddr {
+  color: var(--text-dim);
+  padding: 3px 6px;
+  border-top: 1px solid var(--border);
+}
+
+.memCell {
+  padding: 3px 6px;
+  text-align: right;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid transparent;
+}
+
+.memBlockStart {
+  border-left: 2px solid var(--accent);
+}
+
+.memLabel {
+  grid-column: 1 / -1;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--accent);
+  padding: 6px 6px 2px;
+  border-top: 2px solid var(--border);
+}
+
+.memStatus0 {
+  color: var(--ok);
+}
+.memStatus1 {
+  color: var(--delay);
+}
+.memStatus2 {
+  color: var(--down);
+}
+.memStatus3 {
+  color: var(--error);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 14px;
+  color: var(--text-dim);
+}
+
+.tabOn {
+  composes: tab;
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* 알람 */
+.alarmCard {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--down);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  background: var(--surface);
+}
+
+.alarmAcked {
+  composes: alarmCard;
+  border-left-color: var(--delay);
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.frames {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1100px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+  .tanks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

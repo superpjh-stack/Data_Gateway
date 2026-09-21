@@ -1,0 +1,160 @@
+.shell {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.kiosk {
+  grid-template-columns: 1fr;
+}
+
+.top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand small {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.kpis {
+  display: flex;
+  gap: 22px;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.topKpi {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.topKpi span:first-child {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.topKpi b {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.clock {
+  font-family: var(--mono);
+  color: var(--text-dim);
+}
+
+.side {
+  border-right: 1px solid var(--border);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.navLink:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.active {
+  composes: navLink;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.navIcon {
+  width: 18px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.sideFoot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.main {
+  padding: 16px;
+  min-width: 0;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--down);
+  background: var(--down-soft);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.bannerPulse {
+  animation: pulse 1s ease-out 1;
+}
+
+.bannerMsg {
+  flex: 1;
+  min-width: 0;
+}
+
+.bannerMore {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .shell {
+    grid-template-columns: 52px 1fr;
+  }
+  .navLabel,
+  .sideFoot span {
+    display: none;
+  }
+  .navLink {
+    justify-content: center;
+  }
+}

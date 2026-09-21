@@ -16,8 +16,11 @@ async def test_ac09_buffer_and_resend(twin_http):
         "/api/sim/faults", json={"target": "EDGE-MES", "type": "mes_link_down", "duration_s": 8}
     )
     assert r.status_code == 200
-    await wait_until(lambda: twin.edge.buffer.stats()["pending_items"] > 30, 8, msg="버퍼 누적")
-    assert twin.edge.mes_link_state() == "DOWN"
+    await wait_until(
+        lambda: twin.edge.buffer.stats()["pending_items"] > 30 and twin.edge.mes_link_state() == "DOWN",
+        8,
+        msg="버퍼 누적 + 링크 DOWN",
+    )
     await wait_until(
         lambda: twin.edge.buffer.stats()["pending_items"] == 0 and twin.edge.mes_link_state() == "OK",
         60,

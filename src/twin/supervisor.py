@@ -78,20 +78,22 @@ class Twin:
         log.info("twin_started", equip="*", url=f"http://{self.cfg.runtime.host}:{port}")
 
     async def stop(self) -> None:
-        for t in self._scenario_tasks:
+        # 주기 작업(허브·고장 반영)을 먼저 멈춰야 닫힌 DB·링크를 건드리지 않는다
+        for t in [*self._scenario_tasks, *self._tasks[1:]]:
             t.cancel()
+        for t in self._tasks[1:]:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await asyncio.wait_for(t, 3)
         await self.edge.stop()
         for p in self.plcs.values():
             if p.running:
                 await p.stop()
         await self.field.stop()
+        await self.hub.close()
         if self._server is not None:
             self._server.should_exit = True
-        for t in self._tasks:
-            t.cancel()
-        for t in self._tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
-                await asyncio.wait_for(t, 3)
+                await asyncio.wait_for(self._tasks[0], 5)
         self.mes.close()
 
     async def __aenter__(self) -> Twin:

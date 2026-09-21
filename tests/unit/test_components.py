@@ -204,3 +204,11 @@ def test_ws_hub_coalesces_values() -> None:
     assert len(hub._pending_values) == 1
     assert hub._pending_values["THD-01"]["values"] == {"temp": 9.0, "humid": 50.0}
     assert len(hub._queue) == 1
+
+
+def test_brine_tank_switch_not_filtered() -> None:
+    """D-014: 절임통 전환으로 염도가 12 → 9 %로 바뀌어도 버리지 않는다."""
+    f = NoiseFilter()
+    assert f.apply(_sample("SAL-01", salinity=12.3, tank_no=3)).values["salinity"] == 12.3
+    assert f.apply(_sample("SAL-01", salinity=9.1, tank_no=4)).values["salinity"] == 9.1
+    assert f.filtered.get("SAL-01", 0) == 0

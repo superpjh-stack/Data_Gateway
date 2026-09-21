@@ -1,0 +1,210 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.cardTitle small {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.badgeIcon {
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.assumed {
+  display: inline-block;
+  border: 1px dashed var(--delay);
+  color: var(--delay);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 0 5px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kpiLabel {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.kpiValue {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2), var(--border), var(--surface-2));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: var(--radius);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.empty {
+  padding: 32px 12px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.errorLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--down);
+  background: var(--down-soft);
+  border: 1px solid var(--down);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  margin-bottom: 12px;
+}
+
+.btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 12px;
+  line-height: 1.6;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btnPrimary {
+  composes: btn;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btnDanger {
+  composes: btn;
+  color: var(--down);
+}
+
+.input {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  min-width: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.table th.sortable:hover {
+  color: var(--text);
+}
+
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+.table td.right,
+.table th.right {
+  text-align: right;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.tableWrap {
+  overflow: auto;
+  max-width: 100%;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.grid {
+  display: grid;
+  gap: var(--gap);
+}
+
+.pageTitle {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.pageTitle small {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-dim);
+}

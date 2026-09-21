@@ -119,8 +119,6 @@ def topology(twin: Twin) -> dict[str, Any]:
         links.append({"from": e.code, "to": c["parent"], "status": states[e.code], "comm": e.comm_type})
     for bid, bus in cfg.buses.items():
         st = _worst([states[e.code] for e in cfg.equipment if e.via.bus == bid])
-        if twin.faults.has("bus_cut", bid):
-            st = "DOWN"
         nodes.append({"id": bid, "kind": "bus", "label": bid, "name": f"RS-485 {bid}", "status": st})
         links.append({"from": bid, "to": bus.plc, "status": st, "comm": "RS-485"})
     for pid in cfg.plcs:
