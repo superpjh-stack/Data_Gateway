@@ -80,9 +80,13 @@ class WsHub:
                     for n in topo["nodes"]:
                         if n["kind"] == "device" and self._status_prev.get(n["id"]) != n["status"]:
                             self._status_prev[n["id"]] = n["status"]
-                            msgs.append({"type": "equip_status", "equip": n["id"], "status": n["status"], "ts": ts})
+                            msgs.append(
+                                {"type": "equip_status", "equip": n["id"], "status": n["status"], "ts": ts}
+                            )
                     buf = twin.edge.buffer.stats()
-                    msgs.append({"type": "edge_buffer", **buf, "mes_link": twin.edge.mes_link_state(), "ts": ts})
+                    msgs.append(
+                        {"type": "edge_buffer", **buf, "mes_link": twin.edge.mes_link_state(), "ts": ts}
+                    )
                     msgs.extend(self._mem_changes(twin, ts))
                 await self._send_all(msgs)
             except Exception as exc:
@@ -96,7 +100,11 @@ class WsHub:
             self._mem_prev[pid] = cur
             if prev is None:
                 continue
-            ch = [{"addr": f"D{i:04d}", "value": v} for i, (a, v) in enumerate(zip(prev, cur, strict=True)) if a != v]
+            ch = [
+                {"addr": f"D{i:04d}", "value": v}
+                for i, (a, v) in enumerate(zip(prev, cur, strict=True))
+                if a != v
+            ]
             if ch:
                 out.append({"type": "plc_mem", "plc": pid, "changes": ch, "ts": ts})
         return out

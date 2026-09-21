@@ -339,7 +339,9 @@ def validate_semantics(cfg: TwinConfig) -> None:
         if bus.plc not in cfg.plcs:
             raise ConfigError(f"config: equipment.yaml buses.{bid}.plc: 없는 PLC '{bus.plc}'")
         if bus.link not in cfg.runtime.ports and not bus.endpoint:
-            raise ConfigError(f"config: equipment.yaml buses.{bid}.link: runtime.yaml ports에 '{bus.link}' 없음")
+            raise ConfigError(
+                f"config: equipment.yaml buses.{bid}.link: runtime.yaml ports에 '{bus.link}' 없음"
+            )
 
     seen_slave: dict[tuple[str, int], str] = {}
     for idx, e in enumerate(cfg.equipment):
@@ -350,7 +352,9 @@ def validate_semantics(cfg: TwinConfig) -> None:
                 raise ConfigError(f"{where}.via: 버스 '{e.via.bus}' 또는 slave 누락")
             key = (e.via.bus, e.via.slave)
             if key in seen_slave:
-                raise ConfigError(f"{where}.via.slave: {e.via.bus} slave {e.via.slave}가 {seen_slave[key]}와 중복")
+                raise ConfigError(
+                    f"{where}.via.slave: {e.via.bus} slave {e.via.slave}가 {seen_slave[key]}와 중복"
+                )
             seen_slave[key] = e.code
         elif k == "plc_tcp":
             if e.via.plc_tcp not in cfg.plcs:
@@ -383,7 +387,9 @@ def _validate_memory_map(cfg: TwinConfig) -> None:
             if code not in by_code:
                 raise ConfigError(f"config: plc_map.yaml blocks.{plc}.{code}: equipment.yaml에 없는 설비")
             if code in mapped:
-                raise ConfigError(f"config: plc_map.yaml blocks.{plc}.{code}: {mapped[code]}에도 매핑됨 (1:1 위반)")
+                raise ConfigError(
+                    f"config: plc_map.yaml blocks.{plc}.{code}: {mapped[code]}에도 매핑됨 (1:1 위반)"
+                )
             mapped[code] = plc
             owner = cfg.plc_of(by_code[code])
             if owner != plc:

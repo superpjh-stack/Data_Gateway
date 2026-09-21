@@ -10,7 +10,13 @@ from twin.common.config import TwinConfig
 from twin.common.util import get_logger
 from twin.field.faults import FaultManager
 from twin.field.models.base import DeviceModel
-from twin.field.models.process import BrineSensorModel, MetalDetectorModel, ScaleModel, TapingMachineModel, build_model
+from twin.field.models.process import (
+    BrineSensorModel,
+    MetalDetectorModel,
+    ScaleModel,
+    TapingMachineModel,
+    build_model,
+)
 from twin.field.servers.servers import (
     AsciiScaleServer,
     ModbusTcpDeviceServer,
@@ -34,7 +40,9 @@ class FieldSimulator:
         host = cfg.runtime.host
         self.bus_servers: dict[str, RtuBusServer] = {}
         for bid, bus in cfg.buses.items():
-            devs = {e.via.slave: self.models[e.code] for e in cfg.equipment if e.via.bus == bid and e.via.slave}
+            devs = {
+                e.via.slave: self.models[e.code] for e in cfg.equipment if e.via.bus == bid and e.via.slave
+            }
             self.bus_servers[bid] = RtuBusServer(bid, host, cfg.port(bus.link), devs, faults, bus.baud)
         self.tcp_servers: list[Any] = []
         self.opcua: TapingOpcUaServer | None = None

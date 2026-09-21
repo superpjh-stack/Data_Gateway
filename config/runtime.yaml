@@ -16,7 +16,7 @@ ports:
   mes_http: 8000
 edge:
   id: edge01
-  plc_poll_ms: 1000
+  plc_poll_ms: 500         # 금속검출 NG 2 s 이내 전달 (AC-07)
   plc_timeout_ms: 800
   batch_max: 500
   retention_hours: 72     # [가정] Q2

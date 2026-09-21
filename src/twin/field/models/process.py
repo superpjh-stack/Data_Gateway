@@ -75,7 +75,10 @@ class BrineSensorModel(DeviceModel):
         self._update()
 
     def tank_states(self) -> dict[int, dict[str, float]]:
-        return {n: {"salinity": round(self.tank_salinity(n), 2), "elapsed_h": round(self.elapsed_h[n], 2)} for n in self.tank_ids}
+        return {
+            n: {"salinity": round(self.tank_salinity(n), 2), "elapsed_h": round(self.elapsed_h[n], 2)}
+            for n in self.tank_ids
+        }
 
 
 class FoxControllerModel(DeviceModel):
@@ -129,7 +132,9 @@ class MetalDetectorModel(DeviceModel):
         self._update()
 
     def _update(self) -> None:
-        self.values.update(result=float(self.last), inspect_cnt=float(self.inspect), ng_cnt=float(self.ng), run=1.0)
+        self.values.update(
+            result=float(self.last), inspect_cnt=float(self.inspect), ng_cnt=float(self.ng), run=1.0
+        )
 
     def trigger_ng(self) -> None:
         """외부 이벤트: 다음 검사 1건을 NG로 만든다 (고장 주입 metal_ng)."""
@@ -223,7 +228,11 @@ class ScaleModel(DeviceModel):
 
     def measure(self) -> tuple[str, float]:
         ov = self.override("weight")
-        w = ov if ov is not None else float(self.p["std_kg"]) + self.gauss(float(self.p.get("sigma_kg", 0.04)))
+        w = (
+            ov
+            if ov is not None
+            else float(self.p["std_kg"]) + self.gauss(float(self.p.get("sigma_kg", 0.04)))
+        )
         state = "US" if self.rng.random() < 0.05 else "ST"
         self.values["weight"] = w
         return state, w
@@ -244,8 +253,12 @@ class FillerModel(DeviceModel):
         self._update()
 
     def _update(self) -> None:
-        self.values.update(speed=round(self.speed), set_volume=float(self.p["set_volume"]), run=1.0,
-                           count=float(int(self.count)))
+        self.values.update(
+            speed=round(self.speed),
+            set_volume=float(self.p["set_volume"]),
+            run=1.0,
+            count=float(int(self.count)),
+        )
 
     def step(self, dt: float) -> None:
         super().step(dt)

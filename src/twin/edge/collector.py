@@ -172,8 +172,12 @@ class EdgeCollector:
             "filtered_recent": list(self.filter.recent[-20:]),
             "buffer": self.buffer.stats(),
             "plcs": {
-                pid: {"state": r.plc_state(), "slave_link": r.slave_link_state(), "diag_words": r.diag_words,
-                      "link": r.link_diag.summary()}
+                pid: {
+                    "state": r.plc_state(),
+                    "slave_link": r.slave_link_state(),
+                    "diag_words": r.diag_words,
+                    "link": r.link_diag.summary(),
+                }
                 for pid, r in self.readers.items()
             },
         }

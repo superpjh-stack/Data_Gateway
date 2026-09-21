@@ -55,9 +55,12 @@ class _StreamLink:
     async def _ensure(self, timeout: float) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         if self._r is None or self._w is None or self._w.is_closing():
             try:
-                self._r, self._w = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), timeout)
+                self._r, self._w = await asyncio.wait_for(
+                    asyncio.open_connection(self.host, self.port), timeout
+                )
             except (TimeoutError, OSError) as exc:
                 raise TimeoutErr(f"연결 실패 {self.host}:{self.port}") from exc
+        assert self._r is not None and self._w is not None
         return self._r, self._w
 
     async def close(self) -> None:
@@ -145,7 +148,9 @@ class SerialPortLink:
 
         async with self._lock:
             if self._w is None:
-                self._r, self._w = await serial_asyncio.open_serial_connection(url=self.path, baudrate=self.baud)
+                self._r, self._w = await serial_asyncio.open_serial_connection(
+                    url=self.path, baudrate=self.baud
+                )
             assert self._r is not None
             req = rtu_read_request(unit, fc, addr, count)
             t0 = time.monotonic()
@@ -156,7 +161,9 @@ class SerialPortLink:
                 raise TimeoutErr("응답 없음") from exc
             if not crc_ok(resp):
                 raise CrcErr(resp.hex())
-            return ReadResult(parse_words_pdu(resp[1:-2], fc, count), req, resp, (time.monotonic() - t0) * 1000)
+            return ReadResult(
+                parse_words_pdu(resp[1:-2], fc, count), req, resp, (time.monotonic() - t0) * 1000
+            )
 
     async def close(self) -> None:
         if self._w is not None:

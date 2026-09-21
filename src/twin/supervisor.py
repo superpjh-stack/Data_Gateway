@@ -56,8 +56,14 @@ class Twin:
             await p.start()
         app = create_app(self)
         port = self.cfg.port("mes_http")
-        config = uvicorn.Config(app, host=self.cfg.runtime.host, port=port, log_level="warning", lifespan="off",
-                                ws_ping_interval=20)
+        config = uvicorn.Config(
+            app,
+            host=self.cfg.runtime.host,
+            port=port,
+            log_level="warning",
+            lifespan="off",
+            ws_ping_interval=20,
+        )
         self._server = uvicorn.Server(config)
         self._server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
         self._tasks.append(asyncio.create_task(self._server.serve()))
@@ -117,7 +123,9 @@ class Twin:
         await self.edge.start()
         log.warning("edge_restarted", equip="EDGE")
 
-    async def apply_fault(self, target: str, type_: str, params: dict[str, Any], duration_s: float | None) -> Any:
+    async def apply_fault(
+        self, target: str, type_: str, params: dict[str, Any], duration_s: float | None
+    ) -> Any:
         if type_ == "edge_restart":
             self.faults.validate(target, type_, params)
             await self.restart_edge()
@@ -150,7 +158,14 @@ async def _main(args: argparse.Namespace) -> None:
         raise SystemExit(2) from exc
     setup_logging(cfg.runtime.log_level)
     if args.fresh:
-        for f in ("mes.db", "mes.db-wal", "mes.db-shm", "edge_buffer.db", "edge_buffer.db-wal", "edge_buffer.db-shm"):
+        for f in (
+            "mes.db",
+            "mes.db-wal",
+            "mes.db-shm",
+            "edge_buffer.db",
+            "edge_buffer.db-wal",
+            "edge_buffer.db-shm",
+        ):
             with contextlib.suppress(FileNotFoundError):
                 (Path(cfg.runtime.data_dir) / f).unlink()
     twin = Twin(cfg)
@@ -159,7 +174,9 @@ async def _main(args: argparse.Namespace) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
     await twin.start()
-    print(f"\n  임진강김치 수집 트윈 기동 완료 → http://{cfg.runtime.host}:{cfg.port('mes_http')}\n", flush=True)
+    print(
+        f"\n  임진강김치 수집 트윈 기동 완료 → http://{cfg.runtime.host}:{cfg.port('mes_http')}\n", flush=True
+    )
     await stop.wait()
     await asyncio.wait_for(twin.stop(), 5)
 

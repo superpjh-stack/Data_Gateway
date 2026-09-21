@@ -95,18 +95,26 @@ def create_app(twin: Twin) -> FastAPI:
         since = iso(now_kst() - timedelta(minutes=minutes))
         rows = twin.mes.db.execute(
             "SELECT ITEM_KEY, RAW_VALUE, COLLECT_DT FROM IF_SENSOR_RAW WHERE EQUIP_ID=? AND COLLECT_DT>=? ORDER BY RAW_ID"
-            " DESC LIMIT 8000", (eid, since)).fetchall()
+            " DESC LIMIT 8000",
+            (eid, since),
+        ).fetchall()
         series: dict[str, list[tuple[str, float]]] = {}
         for key, val, ts in reversed(rows):
             series.setdefault(key, []).append((ts, float(val)))
         return {"code": code, "series": series}
 
     @app.get("/api/raw")
-    async def raw(equip: str | None = None, resend: str | None = None, limit: int = Query(200, le=2000),
-                  since: str | None = None) -> list[dict[str, Any]]:
-        sql = ("SELECT r.RAW_ID, e.EQUIP_CODE, r.TAG_ADDR, r.DATA_TYPE, r.RAW_VALUE, r.UNIT_CD, r.COMM_TYPE,"
-               " r.TARGET_TABLE, r.RESEND_YN, r.COLLECT_DT, r.MSG_ID, r.ITEM_KEY, r.RECEIVED_DT FROM IF_SENSOR_RAW r"
-               " JOIN BAS_EQUIP e ON e.EQUIP_ID = r.EQUIP_ID WHERE 1=1")
+    async def raw(
+        equip: str | None = None,
+        resend: str | None = None,
+        limit: int = Query(200, le=2000),
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        sql = (
+            "SELECT r.RAW_ID, e.EQUIP_CODE, r.TAG_ADDR, r.DATA_TYPE, r.RAW_VALUE, r.UNIT_CD, r.COMM_TYPE,"
+            " r.TARGET_TABLE, r.RESEND_YN, r.COLLECT_DT, r.MSG_ID, r.ITEM_KEY, r.RECEIVED_DT FROM IF_SENSOR_RAW r"
+            " JOIN BAS_EQUIP e ON e.EQUIP_ID = r.EQUIP_ID WHERE 1=1"
+        )
         params: list[Any] = []
         if equip:
             sql += " AND e.EQUIP_CODE=?"
@@ -123,8 +131,12 @@ def create_app(twin: Twin) -> FastAPI:
 
     @app.get("/api/tables/stats")
     async def table_stats() -> dict[str, Any]:
-        return {"counts": twin.mes.table_counts(), "ingested": twin.mes.ingested, "duplicates": twin.mes.dup,
-                "last_ingest": twin.mes.last_ingest}
+        return {
+            "counts": twin.mes.table_counts(),
+            "ingested": twin.mes.ingested,
+            "duplicates": twin.mes.dup,
+            "last_ingest": twin.mes.last_ingest,
+        }
 
     @app.get("/api/tables/{table}")
     async def table(table: str, limit: int = Query(100, le=1000)) -> list[dict[str, Any]]:
@@ -143,7 +155,9 @@ def create_app(twin: Twin) -> FastAPI:
                 " (SELECT MEASURE_DT FROM SLT_SALINITY_LOG s WHERE s.TANK_OPR_ID=o.TANK_OPR_ID ORDER BY SALINITY_LOG_ID"
                 " DESC LIMIT 1) AS LAST_DT, (SELECT ALARM_YN FROM SLT_SALINITY_LOG s WHERE s.TANK_OPR_ID=o.TANK_OPR_ID"
                 " ORDER BY SALINITY_LOG_ID DESC LIMIT 1) AS ALARM_YN FROM SLT_TANK_OPR o WHERE o.TANK_NO=? AND"
-                " o.TANK_STATUS='절임중' ORDER BY o.TANK_OPR_ID DESC LIMIT 1", (n,))
+                " o.TANK_STATUS='절임중' ORDER BY o.TANK_OPR_ID DESC LIMIT 1",
+                (n,),
+            )
             row = opr[0] if opr else {}
             fs = field_state.get(n, {})
             elapsed = None
@@ -151,10 +165,19 @@ def create_app(twin: Twin) -> FastAPI:
                 from twin.common.util import parse_iso
 
                 elapsed = round((now_kst() - parse_iso(row["START_DT"])).total_seconds() / 3600, 1)
-            out.append({"tank": n, "target": row.get("TARGET_SALINITY"), "plan_hours": row.get("PLAN_HOURS"),
-                        "elapsed_h": elapsed, "salinity": row.get("LAST"), "measured_at": row.get("LAST_DT"),
-                        "alarm": row.get("ALARM_YN") == "Y", "sensor": fs.get("sensor"),
-                        "measuring": fs.get("measuring", False)})
+            out.append(
+                {
+                    "tank": n,
+                    "target": row.get("TARGET_SALINITY"),
+                    "plan_hours": row.get("PLAN_HOURS"),
+                    "elapsed_h": elapsed,
+                    "salinity": row.get("LAST"),
+                    "measured_at": row.get("LAST_DT"),
+                    "alarm": row.get("ALARM_YN") == "Y",
+                    "sensor": fs.get("sensor"),
+                    "measuring": fs.get("measuring", False),
+                }
+            )
         return out
 
     @app.get("/api/plc/{plc_id}/memory")
@@ -164,9 +187,15 @@ def create_app(twin: Twin) -> FastAPI:
             raise HTTPException(404, f"PLC 없음 {plc_id}")
         p = twin.plcs[plc_id]
         labels = plc_labels(twin, plc_id)
-        return {"plc": plc_id, "start": start, "words": p.memory.read(start, count), "running": p.running,
-                "labels": {f"D{k:04d}": v for k, v in labels.items() if start <= k < start + count},
-                "diag": p.diag_snapshot(), "write_rejections": p.write_rejections[-20:]}
+        return {
+            "plc": plc_id,
+            "start": start,
+            "words": p.memory.read(start, count),
+            "running": p.running,
+            "labels": {f"D{k:04d}": v for k, v in labels.items() if start <= k < start + count},
+            "diag": p.diag_snapshot(),
+            "write_rejections": p.write_rejections[-20:],
+        }
 
     @app.get("/api/edge/buffer")
     async def edge_buffer() -> dict[str, Any]:
@@ -178,8 +207,12 @@ def create_app(twin: Twin) -> FastAPI:
 
     # ── 알람 ──
     @app.get("/api/alarms")
-    async def alarms(active: bool = False, category: str | None = None, equip: str | None = None,
-                     limit: int = Query(200, le=2000)) -> list[dict[str, Any]]:
+    async def alarms(
+        active: bool = False,
+        category: str | None = None,
+        equip: str | None = None,
+        limit: int = Query(200, le=2000),
+    ) -> list[dict[str, Any]]:
         sql = "SELECT * FROM TWIN_ALARM WHERE 1=1"
         params: list[Any] = []
         if active:
@@ -221,7 +254,11 @@ def create_app(twin: Twin) -> FastAPI:
             res = await twin.apply_fault(f.target, f.type, f.params, f.duration_s)
         except FaultError as exc:
             raise HTTPException(400, str(exc)) from exc
-        return res.to_dict() if res is not None else {"id": None, "type": f.type, "target": f.target, "instant": True}
+        return (
+            res.to_dict()
+            if res is not None
+            else {"id": None, "type": f.type, "target": f.target, "instant": True}
+        )
 
     @app.delete("/api/sim/faults/{fid}")
     async def del_fault(fid: str) -> dict[str, Any]:
@@ -246,18 +283,40 @@ def create_app(twin: Twin) -> FastAPI:
 
     @app.get("/api/meta")
     async def meta() -> dict[str, Any]:
-        return {"processes": list(dict.fromkeys(["입고/보관", "절단/전처리", "세척/절임", "세척/선별", "탈수",
-                                                 "혼합(버무림)", "금속검출", "포장/출고", "냉장·숙성"])),
-                "plcs": {k: v.model_dump() for k, v in cfg.plcs.items()},
-                "buses": {k: v.model_dump() for k, v in cfg.buses.items()}}
+        return {
+            "processes": list(
+                dict.fromkeys(
+                    [
+                        "입고/보관",
+                        "절단/전처리",
+                        "세척/절임",
+                        "세척/선별",
+                        "탈수",
+                        "혼합(버무림)",
+                        "금속검출",
+                        "포장/출고",
+                        "냉장·숙성",
+                    ]
+                )
+            ),
+            "plcs": {k: v.model_dump() for k, v in cfg.plcs.items()},
+            "buses": {k: v.model_dump() for k, v in cfg.buses.items()},
+        }
 
     # ── WebSocket ──
     @app.websocket("/ws")
     async def ws(sock: WebSocket) -> None:
-        snap = {"summary": summary(twin), "topology": topology(twin),
-                "alarms": [{k.lower(): v for k, v in r.items()} for r in twin.mes.rows(
-                    "SELECT * FROM TWIN_ALARM WHERE STATE IN ('RAISED','ACKED') ORDER BY ALARM_ID DESC")],
-                "values": {c: v for c, v in twin.mes.last_values.items()}}
+        snap = {
+            "summary": summary(twin),
+            "topology": topology(twin),
+            "alarms": [
+                {k.lower(): v for k, v in r.items()}
+                for r in twin.mes.rows(
+                    "SELECT * FROM TWIN_ALARM WHERE STATE IN ('RAISED','ACKED') ORDER BY ALARM_ID DESC"
+                )
+            ],
+            "values": {c: v for c, v in twin.mes.last_values.items()},
+        }
         await twin.hub.add(sock, snap)
         try:
             while True:

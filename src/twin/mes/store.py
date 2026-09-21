@@ -16,9 +16,31 @@ from twin.mes.alarms import AlarmEngine
 log = get_logger("mes")
 Publish = Callable[[dict[str, Any]], None]
 
-PROCESSES = ["입고/보관", "절단/전처리", "세척/절임", "세척/선별", "탈수", "혼합(버무림)", "금속검출", "포장/출고", "냉장·숙성"]
-DIST_TABLES = ["IF_SENSOR_RAW", "SLT_SALINITY_LOG", "WSH_SANITIZER_LOG", "AGE_ENV_LOG", "AGE_ENV_ALARM", "QUA_METAL_LOG",
-               "PKG_TAPING_LOG", "PKG_WEIGHT_INSP", "MIX_FILLER_LOG", "EQP_RUN_LOG", "SLT_TANK_OPR", "TWIN_ALARM"]
+PROCESSES = [
+    "입고/보관",
+    "절단/전처리",
+    "세척/절임",
+    "세척/선별",
+    "탈수",
+    "혼합(버무림)",
+    "금속검출",
+    "포장/출고",
+    "냉장·숙성",
+]
+DIST_TABLES = [
+    "IF_SENSOR_RAW",
+    "SLT_SALINITY_LOG",
+    "WSH_SANITIZER_LOG",
+    "AGE_ENV_LOG",
+    "AGE_ENV_ALARM",
+    "QUA_METAL_LOG",
+    "PKG_TAPING_LOG",
+    "PKG_WEIGHT_INSP",
+    "MIX_FILLER_LOG",
+    "EQP_RUN_LOG",
+    "SLT_TANK_OPR",
+    "TWIN_ALARM",
+]
 WORK_ORDER_ID = 1
 LOT_NO = "L260921-01"
 ITEM_ID = 1
@@ -70,8 +92,17 @@ class MesStore:
                     " COLLECT_ITEM, USE_YN, CREATED_DT) VALUES(?,?,?,?,?,?,?,?, 'Y', ?) ON CONFLICT(EQUIP_CODE) DO UPDATE"
                     " SET EQUIP_NAME=excluded.EQUIP_NAME, PLC_TAG=excluded.PLC_TAG, COMM_TYPE=excluded.COMM_TYPE,"
                     " COLLECT_ITEM=excluded.COLLECT_ITEM, UPDATED_DT=excluded.CREATED_DT",
-                    (e.code, e.name, e.type, pid, e.process, plc_tag(cfg, e), e.comm_type,
-                     ",".join(i.name for i in e.items), now),
+                    (
+                        e.code,
+                        e.name,
+                        e.type,
+                        pid,
+                        e.process,
+                        plc_tag(cfg, e),
+                        e.comm_type,
+                        ",".join(i.name for i in e.items),
+                        now,
+                    ),
                 )
             for r in cfg.ccp:
                 self.db.execute(
@@ -79,12 +110,25 @@ class MesStore:
                     " SEVERITY, BASIS, CREATED_DT) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(CCP_CODE) DO UPDATE SET"
                     " LOW_LIMIT=excluded.LOW_LIMIT, HIGH_LIMIT=excluded.HIGH_LIMIT, BAND=excluded.BAND,"
                     " HOLD_SEC=excluded.HOLD_SEC",
-                    (r.id, r.item, ",".join(r.equip), r.low, r.high, r.band if r.band is not None else r.band_pct,
-                     r.unit, r.hold_sec, r.severity, r.basis, now),
+                    (
+                        r.id,
+                        r.item,
+                        ",".join(r.equip),
+                        r.low,
+                        r.high,
+                        r.band if r.band is not None else r.band_pct,
+                        r.unit,
+                        r.hold_sec,
+                        r.severity,
+                        r.basis,
+                        now,
+                    ),
                 )
             if not self.db.execute("SELECT 1 FROM ORD_WORK_ORDER").fetchone():
-                self.db.execute("INSERT INTO ORD_WORK_ORDER VALUES(?, 'WO-260921-001', ?, ?, ?)",
-                                (WORK_ORDER_ID, LOT_NO, ITEM_ID, now))
+                self.db.execute(
+                    "INSERT INTO ORD_WORK_ORDER VALUES(?, 'WO-260921-001', ?, ?, ?)",
+                    (WORK_ORDER_ID, LOT_NO, ITEM_ID, now),
+                )
             if not self.db.execute("SELECT 1 FROM SLT_TANK_OPR").fetchone():
                 t0 = now_kst()
                 for n, tk in sorted(cfg.tanks.items()):
@@ -111,8 +155,20 @@ class MesStore:
                 cur = self.db.execute(
                     "INSERT OR IGNORE INTO IF_SENSOR_RAW(EQUIP_ID, TAG_ADDR, DATA_TYPE, RAW_VALUE, UNIT_CD, COMM_TYPE,"
                     " TARGET_TABLE, RESEND_YN, COLLECT_DT, MSG_ID, ITEM_KEY, RECEIVED_DT) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (eid, it["tag_addr"], it["data_type"], it["raw_value"], it.get("unit_cd"), it["comm_type"],
-                     it.get("target_table"), it["resend_yn"], it["collect_dt"], it["msg_id"], it["item_key"], now),
+                    (
+                        eid,
+                        it["tag_addr"],
+                        it["data_type"],
+                        it["raw_value"],
+                        it.get("unit_cd"),
+                        it["comm_type"],
+                        it.get("target_table"),
+                        it["resend_yn"],
+                        it["collect_dt"],
+                        it["msg_id"],
+                        it["item_key"],
+                        now,
+                    ),
                 )
                 if cur.rowcount:
                     fresh.append(it)
@@ -120,7 +176,9 @@ class MesStore:
                     self.dup += 1
             groups: dict[tuple[str, str], dict[str, float]] = {}
             for it in fresh:
-                groups.setdefault((it["equip_code"], it["collect_dt"]), {})[it["item_key"]] = float(it["raw_value"])
+                groups.setdefault((it["equip_code"], it["collect_dt"]), {})[it["item_key"]] = float(
+                    it["raw_value"]
+                )
             for (code, ts), vals in sorted(groups.items(), key=lambda kv: kv[0][1]):
                 try:
                     self.route(code, ts, vals)
@@ -170,8 +228,9 @@ class MesStore:
         dev = False
         rule = self._rule(e.code, "salinity")
         if rule:
-            dev, _ = self.alarms.check(rule, e.code, v["salinity"], ts, sub=f"T{tank}", target=target,
-                                       label=f"절임통 {tank}")
+            dev, _ = self.alarms.check(
+                rule, e.code, v["salinity"], ts, sub=f"T{tank}", target=target, label=f"절임통 {tank}"
+            )
         self.db.execute(
             "INSERT INTO SLT_SALINITY_LOG(TANK_OPR_ID, SENSOR_ID, SALINITY_VALUE, ELAPSED_HOURS, ALARM_YN, COLLECT_TYPE,"
             " MEASURE_DT) VALUES(?,?,?,?,?,'PLC 자동',?)",
@@ -184,20 +243,29 @@ class MesStore:
         while True:
             row = self.db.execute(
                 "SELECT TANK_OPR_ID, START_DT, PLAN_HOURS, TARGET_SALINITY FROM SLT_TANK_OPR WHERE TANK_NO=? AND"
-                " TANK_STATUS='절임중' ORDER BY TANK_OPR_ID DESC LIMIT 1", (tank,)
+                " TANK_STATUS='절임중' ORDER BY TANK_OPR_ID DESC LIMIT 1",
+                (tank,),
             ).fetchone()
             if row is None:
                 tk = self.cfg.tanks[tank]
-                self.db.execute("INSERT INTO SLT_TANK_OPR(TANK_NO, TARGET_SALINITY, PLAN_HOURS, START_DT, TANK_STATUS)"
-                                " VALUES(?,?,?,?, '절임중')", (tank, tk.target, tk.hours, ts))
+                self.db.execute(
+                    "INSERT INTO SLT_TANK_OPR(TANK_NO, TARGET_SALINITY, PLAN_HOURS, START_DT, TANK_STATUS)"
+                    " VALUES(?,?,?,?, '절임중')",
+                    (tank, tk.target, tk.hours, ts),
+                )
                 continue
             opr_id, start, hours, target = row
             end = parse_iso(start) + timedelta(hours=float(hours))
             if parse_iso(ts) < end:
                 return int(opr_id), str(start), float(hours), float(target)
-            self.db.execute("UPDATE SLT_TANK_OPR SET TANK_STATUS='완료', END_DT=? WHERE TANK_OPR_ID=?", (iso(end), opr_id))
-            self.db.execute("INSERT INTO SLT_TANK_OPR(TANK_NO, TARGET_SALINITY, PLAN_HOURS, START_DT, TANK_STATUS)"
-                            " VALUES(?,?,?,?, '절임중')", (tank, target, hours, iso(end)))
+            self.db.execute(
+                "UPDATE SLT_TANK_OPR SET TANK_STATUS='완료', END_DT=? WHERE TANK_OPR_ID=?", (iso(end), opr_id)
+            )
+            self.db.execute(
+                "INSERT INTO SLT_TANK_OPR(TANK_NO, TARGET_SALINITY, PLAN_HOURS, START_DT, TANK_STATUS)"
+                " VALUES(?,?,?,?, '절임중')",
+                (tank, target, hours, iso(end)),
+            )
 
     def _env(self, e: Equip, eid: int, ts: str, v: dict[str, float]) -> dict[str, Any]:
         temp = v.get("pv", v.get("temp"))
@@ -213,12 +281,20 @@ class MesStore:
                 dev, aid = self.alarms.check(rule, e.code, v[rule.key], ts, label=e.name)
                 dev_any = dev_any or dev
                 if aid:
-                    ccp_id = self.db.execute("SELECT CCP_STD_ID FROM BAS_CCP_STD WHERE CCP_CODE=?", (rule.id,)).fetchone()
+                    ccp_id = self.db.execute(
+                        "SELECT CCP_STD_ID FROM BAS_CCP_STD WHERE CCP_CODE=?", (rule.id,)
+                    ).fetchone()
                     self.db.execute(
                         "INSERT INTO AGE_ENV_ALARM(ENV_LOG_ID, CCP_STD_ID, ALARM_ITEM, ALARM_VALUE, CONFIRM_YN, ALARM_DT,"
                         " CREATED_DT) VALUES(?,?,?,?, 'N', ?, ?)",
-                        (env_id, ccp_id[0] if ccp_id else None, "온도" if rule.key in ("pv", "temp") else "습도",
-                         v[rule.key], ts, iso(now_kst())),
+                        (
+                            env_id,
+                            ccp_id[0] if ccp_id else None,
+                            "온도" if rule.key in ("pv", "temp") else "습도",
+                            v[rule.key],
+                            ts,
+                            iso(now_kst()),
+                        ),
                     )
         return {"deviating": dev_any}
 
@@ -232,7 +308,15 @@ class MesStore:
         self.db.execute(
             "INSERT INTO WSH_SANITIZER_LOG(EQUIP_ID, WORK_ORDER_ID, PPM_VALUE, CONTACT_TIME, DOSING_RATE, ALARM_YN,"
             " COLLECT_DT) VALUES(?,?,?,?,?,?,?)",
-            (eid, WORK_ORDER_ID, v["ppm"], v.get("contact_min"), v.get("dosing_rate"), "Y" if dev else "N", ts),
+            (
+                eid,
+                WORK_ORDER_ID,
+                v["ppm"],
+                v.get("contact_min"),
+                v.get("dosing_rate"),
+                "Y" if dev else "N",
+                ts,
+            ),
         )
         return {"deviating": dev}
 
@@ -255,8 +339,13 @@ class MesStore:
         )
         rule = self._rule(e.code, "ng_cnt")
         if ng and rule:
-            self.alarms.event(rule, e.code, f"{int(cur[1])}", ts,
-                              f"금속검출 NG {int(d_ng)}건 (누적 {int(cur[1])}건, LOT {LOT_NO}) — 불합격품 격리 확인")
+            self.alarms.event(
+                rule,
+                e.code,
+                f"{int(cur[1])}",
+                ts,
+                f"금속검출 NG {int(d_ng)}건 (누적 {int(cur[1])}건, LOT {LOT_NO}) — 불합격품 격리 확인",
+            )
         return {"ng": ng}
 
     def _run_log(self, e: Equip, eid: int, running: bool, ts: str) -> None:
@@ -264,20 +353,28 @@ class MesStore:
         state = "가동" if running else "비가동"
         prev = self._run_state.get(e.code)
         if prev is None:
-            row = self.db.execute("SELECT RUN_STATUS FROM EQP_RUN_LOG WHERE EQUIP_ID=? AND END_DT IS NULL ORDER BY"
-                                  " RUN_LOG_ID DESC LIMIT 1", (eid,)).fetchone()
+            row = self.db.execute(
+                "SELECT RUN_STATUS FROM EQP_RUN_LOG WHERE EQUIP_ID=? AND END_DT IS NULL ORDER BY"
+                " RUN_LOG_ID DESC LIMIT 1",
+                (eid,),
+            ).fetchone()
             prev = row[0] if row else None
         if prev == state:
             self._run_state[e.code] = state
             return
         now = iso(now_kst())
         if prev is not None:
-            row = self.db.execute("SELECT RUN_LOG_ID, START_DT FROM EQP_RUN_LOG WHERE EQUIP_ID=? AND END_DT IS NULL"
-                                  " ORDER BY RUN_LOG_ID DESC LIMIT 1", (eid,)).fetchone()
+            row = self.db.execute(
+                "SELECT RUN_LOG_ID, START_DT FROM EQP_RUN_LOG WHERE EQUIP_ID=? AND END_DT IS NULL"
+                " ORDER BY RUN_LOG_ID DESC LIMIT 1",
+                (eid,),
+            ).fetchone()
             if row:
                 mins = (parse_iso(ts) - parse_iso(row[1])).total_seconds() / 60
-                self.db.execute("UPDATE EQP_RUN_LOG SET END_DT=?, STOP_MINUTES=?, UPDATED_DT=? WHERE RUN_LOG_ID=?",
-                                (ts, round(mins, 2) if prev == "비가동" else None, now, row[0]))
+                self.db.execute(
+                    "UPDATE EQP_RUN_LOG SET END_DT=?, STOP_MINUTES=?, UPDATED_DT=? WHERE RUN_LOG_ID=?",
+                    (ts, round(mins, 2) if prev == "비가동" else None, now, row[0]),
+                )
         self.db.execute(
             "INSERT INTO EQP_RUN_LOG(EQUIP_ID, RUN_STATUS, STOP_CODE, START_DT, INPUT_TYPE, CREATED_DT)"
             " VALUES(?,?,?,?, '자동 수집', ?)",
@@ -295,8 +392,14 @@ class MesStore:
                 self.db.execute(
                     "INSERT INTO PKG_TAPING_LOG(EQUIP_ID, WORK_ORDER_ID, PACK_QTY, RUN_STATUS, RUN_MINUTES, COLLECT_TYPE,"
                     " COLLECT_DT) VALUES(?,?,?,?,?, 'OPC-UA 자동 수집', ?)",
-                    (eid, WORK_ORDER_ID, v["pack_count"] - prev, "가동" if v.get("running", 1) >= 0.5 else "정지",
-                     v.get("run_minutes"), ts),
+                    (
+                        eid,
+                        WORK_ORDER_ID,
+                        v["pack_count"] - prev,
+                        "가동" if v.get("running", 1) >= 0.5 else "정지",
+                        v.get("run_minutes"),
+                        ts,
+                    ),
                 )
         return {}
 
@@ -314,7 +417,13 @@ class MesStore:
             (WORK_ORDER_ID, ITEM_ID, std, w, round(w - std, 3), judge, ts, iso(now_kst())),
         )
         if judge != "합격" and rule:
-            self.alarms.event(rule, e.code, f"{w:.3f}", ts, f"포장 중량 {judge} {w:.3f}kg (기준 {std:g}kg ±{rule.band_pct:g}%)")
+            self.alarms.event(
+                rule,
+                e.code,
+                f"{w:.3f}",
+                ts,
+                f"포장 중량 {judge} {w:.3f}kg (기준 {std:g}kg ±{rule.band_pct:g}%)",
+            )
         return {"judge": judge}
 
     def _filler(self, e: Equip, eid: int, ts: str, v: dict[str, float]) -> dict[str, Any]:
@@ -323,8 +432,15 @@ class MesStore:
         self.db.execute(
             "INSERT INTO MIX_FILLER_LOG(EQUIP_ID, WORK_ORDER_ID, BATCH_NO, WORK_SPEED, SET_VOLUME, SETTING_JSON,"
             " COLLECT_TYPE, COLLECT_DT) VALUES(?,?,?,?,?,?, 'Modbus TCP 자동 수집', ?)",
-            (eid, WORK_ORDER_ID, f"B{ts[2:10].replace('-', '')}-01", v.get("speed"), v.get("set_volume"),
-             json.dumps({k: v[k] for k in ("speed", "set_volume") if k in v}), ts),
+            (
+                eid,
+                WORK_ORDER_ID,
+                f"B{ts[2:10].replace('-', '')}-01",
+                v.get("speed"),
+                v.get("set_volume"),
+                json.dumps({k: v[k] for k in ("speed", "set_volume") if k in v}),
+                ts,
+            ),
         )
         return {}
 

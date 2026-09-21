@@ -30,7 +30,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "ASYNC"]
-ignore = ["E501"]
+ignore = ["E501", "ASYNC109"]  # 프로토콜 함수의 timeout 인자는 의도된 API
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

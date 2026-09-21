@@ -29,8 +29,12 @@ from twin.plc.link import ModbusTcpLink, ReadLink, make_rtu_link
 log = get_logger("plc")
 
 MEM_WORDS = 2000
-FC_NAMES = {5: "Write Single Coil", 6: "Write Single Register", 15: "Write Multiple Coils",
-            16: "Write Multiple Registers"}
+FC_NAMES = {
+    5: "Write Single Coil",
+    6: "Write Single Register",
+    15: "Write Multiple Coils",
+    16: "Write Multiple Registers",
+}
 
 
 class PlcMemory:
@@ -179,8 +183,15 @@ class PlcRuntime:
             for e in cfg.equipment:
                 if e.via.bus == bid:
                     assert e.via.slave is not None
-                    p = Point(e, blocks[e.code], link, e.via.slave, bus.timeout_ms / 1000, bus.retries,
-                              Diag(delay_ms=e.effective_delay_ms()))
+                    p = Point(
+                        e,
+                        blocks[e.code],
+                        link,
+                        e.via.slave,
+                        bus.timeout_ms / 1000,
+                        bus.retries,
+                        Diag(delay_ms=e.effective_delay_ms()),
+                    )
                     pts.append(p)
                     self.points[e.code] = p
                     self.bus_of[e.code] = bid
@@ -277,8 +288,13 @@ class PlcRuntime:
     def _handle(self, pdu: bytes, peer: Any) -> bytes:
         fc = pdu[0]
         if fc not in READ_FCS:
-            rec = {"ts": iso(now_kst()), "fc": fc, "name": FC_NAMES.get(fc, "?"), "peer": str(peer),
-                   "pdu": pdu.hex(" ").upper()}
+            rec = {
+                "ts": iso(now_kst()),
+                "fc": fc,
+                "name": FC_NAMES.get(fc, "?"),
+                "peer": str(peer),
+                "pdu": pdu.hex(" ").upper(),
+            }
             self.write_rejections.append(rec)
             log.warning("write_rejected", equip=self.id, fc=fc, peer=str(peer))
             return exception_pdu(fc, EXC_ILLEGAL_FUNCTION)

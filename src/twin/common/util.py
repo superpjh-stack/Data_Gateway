@@ -29,7 +29,9 @@ def parse_iso(s: str) -> datetime:
 
 def setup_logging(level: str = "INFO") -> None:
     """structlog JSON 로그를 설정한다. 필수 필드는 layer, equip, event."""
-    logging.basicConfig(stream=sys.stdout, level=getattr(logging, level.upper(), logging.INFO), format="%(message)s")
+    logging.basicConfig(
+        stream=sys.stdout, level=getattr(logging, level.upper(), logging.INFO), format="%(message)s"
+    )
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -72,13 +74,17 @@ class Diag:
     """
 
     delay_ms: float
-    attempts: deque[tuple[float, bool, float | None, str | None]] = field(default_factory=lambda: deque(maxlen=6000))
+    attempts: deque[tuple[float, bool, float | None, str | None]] = field(
+        default_factory=lambda: deque(maxlen=6000)
+    )
     polls: deque[tuple[float, bool]] = field(default_factory=lambda: deque(maxlen=4000))
     frames: deque[Frame] = field(default_factory=lambda: deque(maxlen=50))
     consecutive_fail: int = 0
     last_ok_iso: str | None = None
     counter: int = 0
-    errors: dict[str, int] = field(default_factory=lambda: {"timeout": 0, "crc": 0, "exception": 0, "frame": 0})
+    errors: dict[str, int] = field(
+        default_factory=lambda: {"timeout": 0, "crc": 0, "exception": 0, "frame": 0}
+    )
     ever_ok: bool = False
 
     def attempt(self, ok: bool, rtt_ms: float | None, err: str | None) -> None:

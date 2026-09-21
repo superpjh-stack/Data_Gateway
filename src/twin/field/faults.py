@@ -73,11 +73,15 @@ class FaultManager:
             if p not in params:
                 raise FaultError(f"'{type_}'에 params.{p} 필요")
 
-    def add(self, target: str, type_: str, params: dict[str, Any] | None = None, duration_s: float | None = None) -> Fault:
+    def add(
+        self, target: str, type_: str, params: dict[str, Any] | None = None, duration_s: float | None = None
+    ) -> Fault:
         params = params or {}
         self.validate(target, type_, params)
         now = time.monotonic()
-        f = Fault(f"F-{next(self._seq)}", target, type_, params, now, now + duration_s if duration_s else None)
+        f = Fault(
+            f"F-{next(self._seq)}", target, type_, params, now, now + duration_s if duration_s else None
+        )
         self._faults[f.id] = f
         return f
 
@@ -103,11 +107,20 @@ class FaultManager:
         return self.find(type_, target) is not None
 
     def spikes(self, code: str) -> dict[str, float]:
-        return {f.params["key"]: float(f.params["value"]) for f in self.active() if f.type == "value_spike" and f.target == code}
+        return {
+            f.params["key"]: float(f.params["value"])
+            for f in self.active()
+            if f.type == "value_spike" and f.target == code
+        }
 
     def catalog(self) -> list[dict[str, Any]]:
         return [
-            {"type": t, "label": s["label"], "params": s["params"], "targets": self.targets.get(s["target"], []),
-             "instant": bool(s.get("instant"))}
+            {
+                "type": t,
+                "label": s["label"],
+                "params": s["params"],
+                "targets": self.targets.get(s["target"], []),
+                "instant": bool(s.get("instant")),
+            }
             for t, s in FAULT_TYPES.items()
         ]

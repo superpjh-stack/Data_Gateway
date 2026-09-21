@@ -61,8 +61,16 @@ class AlarmEngine:
         return "기준 " + " · ".join(parts)
 
     # ── 조건 알람 ──
-    def check(self, rule: CcpRule, equip: str, value: float, ts: str, sub: str = "",
-              target: float | None = None, label: str = "") -> tuple[bool, int | None]:
+    def check(
+        self,
+        rule: CcpRule,
+        equip: str,
+        value: float,
+        ts: str,
+        sub: str = "",
+        target: float | None = None,
+        label: str = "",
+    ) -> tuple[bool, int | None]:
         """(이탈 여부, 이번에 발생한 알람 ID)."""
         key = (rule.id, equip, sub)
         dev = self.deviates(rule, value, target)
@@ -77,16 +85,20 @@ class AlarmEngine:
             return True, None
         hold = f", {rule.hold_sec:g}초 지속" if rule.hold_sec else ""
         msg = f"{label or equip} {rule.item} {value:g}{rule.unit} ({self.describe(rule, target)}{hold})"
-        return True, self._raise("CCP", rule.id, rule.item, equip, rule.severity, msg, f"{value:g}", iso(start), sub)
+        return True, self._raise(
+            "CCP", rule.id, rule.item, equip, rule.severity, msg, f"{value:g}", iso(start), sub
+        )
 
     # ── 이벤트 알람 (금속 NG, 중량 이탈) ──
     def event(self, rule: CcpRule, equip: str, value: str, ts: str, msg: str) -> int:
         key = (rule.id, equip, "")
         if key in self.active:
             aid = self.active[key]
-            self.db.execute("UPDATE TWIN_ALARM SET MESSAGE=?, VALUE=?, RAISED_DT=?, STATE='RAISED' WHERE ALARM_ID=?",
-                            (msg, value, ts, aid))
-            self.publish({"type": "alarm", **self.get(aid)})
+            self.db.execute(
+                "UPDATE TWIN_ALARM SET MESSAGE=?, VALUE=?, RAISED_DT=?, STATE='RAISED' WHERE ALARM_ID=?",
+                (msg, value, ts, aid),
+            )
+            self._emit(aid)
             return aid
         return self._raise("CCP", rule.id, rule.item, equip, rule.severity, msg, value, ts, "")
 
@@ -104,8 +116,18 @@ class AlarmEngine:
             self._raise("COMM", "COMM", key_id, equip, severity, msg, None, iso(start), key_id)
 
     # ── 저장 ──
-    def _raise(self, cat: str, rule_id: str, item: str, equip: str, sev: str, msg: str, value: str | None,
-               ts: str, sub: str) -> int:
+    def _raise(
+        self,
+        cat: str,
+        rule_id: str,
+        item: str,
+        equip: str,
+        sev: str,
+        msg: str,
+        value: str | None,
+        ts: str,
+        sub: str,
+    ) -> int:
         cur = self.db.execute(
             "INSERT INTO TWIN_ALARM(CATEGORY, RULE_ID, ITEM, EQUIP_CODE, SEVERITY, MESSAGE, VALUE, VALUE_KEY, STATE, "
             "RAISED_DT) VALUES(?,?,?,?,?,?,?,?,'RAISED',?)",
@@ -113,13 +135,18 @@ class AlarmEngine:
         )
         aid = int(cur.lastrowid or 0)
         self.active[(rule_id if cat == "CCP" else "COMM", equip, sub)] = aid
-        self.publish({"type": "alarm", **self.get(aid)})
+        self._emit(aid)
         return aid
 
     def _clear(self, key: tuple[str, str, str], ts: str) -> None:
         aid = self.active.pop(key)
         self.db.execute("UPDATE TWIN_ALARM SET STATE='CLEARED', CLEARED_DT=? WHERE ALARM_ID=?", (ts, aid))
-        self.publish({"type": "alarm", **self.get(aid)})
+        self._emit(aid)
+
+    def _emit(self, aid: int) -> None:
+        row = self.get(aid)
+        if row is not None:
+            self.publish({"type": "alarm", **row})
 
     def ack(self, aid: int) -> dict[str, Any] | None:
         row = self.get(aid)
@@ -130,8 +157,10 @@ class AlarmEngine:
         is_event = rule is not None and (rule.ng_immediate or rule.band_pct is not None)
         if row["state"] == "RAISED":
             if is_event:
-                self.db.execute("UPDATE TWIN_ALARM SET STATE='CLEARED', ACKED_DT=?, CLEARED_DT=? WHERE ALARM_ID=?",
-                                (ts, ts, aid))
+                self.db.execute(
+                    "UPDATE TWIN_ALARM SET STATE='CLEARED', ACKED_DT=?, CLEARED_DT=? WHERE ALARM_ID=?",
+                    (ts, ts, aid),
+                )
                 for k, v in list(self.active.items()):
                     if v == aid:
                         del self.active[k]

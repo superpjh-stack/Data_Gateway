@@ -27,11 +27,19 @@ def connection_desc(twin: Twin, code: str) -> dict[str, Any]:
     base = twin.cfg.block_base(code)
     if e.kind == "bus":
         assert e.via.bus
-        return {"parent": e.via.bus, "plc": twin.cfg.buses[e.via.bus].plc, "label": f"{e.via.bus} #{e.via.slave}",
-                "plc_block": f"{base[0]}.D{base[1]:04d}" if base else None}
+        return {
+            "parent": e.via.bus,
+            "plc": twin.cfg.buses[e.via.bus].plc,
+            "label": f"{e.via.bus} #{e.via.slave}",
+            "plc_block": f"{base[0]}.D{base[1]:04d}" if base else None,
+        }
     if e.kind == "plc_tcp":
-        return {"parent": f"ETH-{e.via.plc_tcp}", "plc": e.via.plc_tcp, "label": f"Ethernet → {e.via.plc_tcp}",
-                "plc_block": f"{base[0]}.D{base[1]:04d}" if base else None}
+        return {
+            "parent": f"ETH-{e.via.plc_tcp}",
+            "plc": e.via.plc_tcp,
+            "label": f"Ethernet → {e.via.plc_tcp}",
+            "plc_block": f"{base[0]}.D{base[1]:04d}" if base else None,
+        }
     return {"parent": "EDGE", "plc": None, "label": f"Edge 직결 ({e.comm_type})", "plc_block": None}
 
 
@@ -58,8 +66,19 @@ def equip_row(twin: Twin, code: str) -> dict[str, Any]:
         "last_ts": lv.get("ts"),
         "extra": {k: v for k, v in lv.items() if k not in ("values", "ts")},
         "assumed": e.assumed,
-        "items": [{"key": i.key, "name": i.name, "unit": i.unit, "reg": i.reg, "node": i.node, "type": i.type,
-                   "scale": i.scale, "data_type": i.data_type} for i in e.items],
+        "items": [
+            {
+                "key": i.key,
+                "name": i.name,
+                "unit": i.unit,
+                "reg": i.reg,
+                "node": i.node,
+                "type": i.type,
+                "scale": i.scale,
+                "data_type": i.data_type,
+            }
+            for i in e.items
+        ],
         "target": e.target,
         **connection_desc(twin, code),
     }
@@ -86,8 +105,17 @@ def topology(twin: Twin) -> dict[str, Any]:
     states = {e.code: equip_state(twin, e.code) for e in cfg.equipment}
     for e in cfg.equipment:
         c = connection_desc(twin, e.code)
-        nodes.append({"id": e.code, "kind": "device", "label": e.code, "name": e.name, "status": states[e.code],
-                      "process": e.process, "comm": e.comm_type})
+        nodes.append(
+            {
+                "id": e.code,
+                "kind": "device",
+                "label": e.code,
+                "name": e.name,
+                "status": states[e.code],
+                "process": e.process,
+                "comm": e.comm_type,
+            }
+        )
         links.append({"from": e.code, "to": c["parent"], "status": states[e.code], "comm": e.comm_type})
     for bid, bus in cfg.buses.items():
         st = _worst([states[e.code] for e in cfg.equipment if e.via.bus == bid])
@@ -99,25 +127,62 @@ def topology(twin: Twin) -> dict[str, Any]:
         eth = [e.code for e in cfg.equipment if e.kind == "plc_tcp" and e.via.plc_tcp == pid]
         if eth:
             st = _worst([states[c] for c in eth])
-            nodes.append({"id": f"ETH-{pid}", "kind": "bus", "label": "ETH", "name": "Ethernet(XBL-EMTA600)",
-                          "status": st})
+            nodes.append(
+                {
+                    "id": f"ETH-{pid}",
+                    "kind": "bus",
+                    "label": "ETH",
+                    "name": "Ethernet(XBL-EMTA600)",
+                    "status": st,
+                }
+            )
             links.append({"from": f"ETH-{pid}", "to": pid, "status": st, "comm": "Ethernet"})
     for pid, r in twin.edge.readers.items():
         st = r.plc_state()
-        nodes.append({"id": pid, "kind": "plc", "label": pid, "name": cfg.plcs[pid].name, "status": st,
-                      "model": cfg.plcs[pid].model})
+        nodes.append(
+            {
+                "id": pid,
+                "kind": "plc",
+                "label": pid,
+                "name": cfg.plcs[pid].name,
+                "status": st,
+                "model": cfg.plcs[pid].model,
+            }
+        )
         links.append({"from": pid, "to": "EDGE", "status": st, "comm": "Modbus TCP"})
     master = twin.edge.readers.get("MASTER")
     if master and "SLAVE" in cfg.plcs:
         sl = master.slave_link_state() or "UNKNOWN"
-        links.append({"from": "SLAVE", "to": "MASTER", "status": sl if sl != "UNKNOWN" else "STALE",
-                      "comm": "하트비트", "kind": "aux"})
-    nodes.append({"id": "EDGE", "kind": "edge", "label": "Edge", "name": "Edge Collector (T1 X300)", "status": "OK"})
+        links.append(
+            {
+                "from": "SLAVE",
+                "to": "MASTER",
+                "status": sl if sl != "UNKNOWN" else "STALE",
+                "comm": "하트비트",
+                "kind": "aux",
+            }
+        )
+    nodes.append(
+        {"id": "EDGE", "kind": "edge", "label": "Edge", "name": "Edge Collector (T1 X300)", "status": "OK"}
+    )
     ml = twin.edge.mes_link_state()
-    nodes.append({"id": "MES", "kind": "mes", "label": "MES", "name": "임진강김치 MES", "status":
-                  "OK" if ml == "OK" else ("DOWN" if ml == "DOWN" else "STALE")})
-    links.append({"from": "EDGE", "to": "MES", "status": "OK" if ml == "OK" else ("DOWN" if ml == "DOWN" else "STALE"),
-                  "comm": "HTTP"})
+    nodes.append(
+        {
+            "id": "MES",
+            "kind": "mes",
+            "label": "MES",
+            "name": "임진강김치 MES",
+            "status": "OK" if ml == "OK" else ("DOWN" if ml == "DOWN" else "STALE"),
+        }
+    )
+    links.append(
+        {
+            "from": "EDGE",
+            "to": "MES",
+            "status": "OK" if ml == "OK" else ("DOWN" if ml == "DOWN" else "STALE"),
+            "comm": "HTTP",
+        }
+    )
     return {"nodes": nodes, "links": links}
 
 
@@ -133,7 +198,9 @@ def summary(twin: Twin) -> dict[str, Any]:
         w = [p for p in d.polls if p[0] >= cut]
         total_polls += len(w)
         ok_polls += sum(1 for p in w if p[1])
-    active = int(twin.mes.db.execute("SELECT COUNT(*) FROM TWIN_ALARM WHERE STATE IN ('RAISED','ACKED')").fetchone()[0])
+    active = int(
+        twin.mes.db.execute("SELECT COUNT(*) FROM TWIN_ALARM WHERE STATE IN ('RAISED','ACKED')").fetchone()[0]
+    )
     buf = twin.edge.buffer.stats()
     return {
         "total": len(codes),
@@ -167,12 +234,22 @@ def sync_comm_alarms(twin: Twin) -> None:
         al.comm(e.code, e.code, bad, SEVERITY_BY_STATE.get(st, "LOW"), f"{e.name} {label}")
     master = twin.edge.readers.get("MASTER")
     if master and plc_state.get("MASTER") == "OK" and plc_state.get("SLAVE") == "OK":
-        al.comm("MASTER-SLAVE", "MASTER-SLAVE", master.slave_link_state() == "DOWN", "MEDIUM",
-                "Master–Slave 연동 끊김 (D0902 정지)")
+        al.comm(
+            "MASTER-SLAVE",
+            "MASTER-SLAVE",
+            master.slave_link_state() == "DOWN",
+            "MEDIUM",
+            "Master–Slave 연동 끊김 (D0902 정지)",
+        )
     else:
         al.comm("MASTER-SLAVE", "MASTER-SLAVE", False, "MEDIUM", "")
-    al.comm("EDGE-MES", "EDGE-MES", twin.edge.mes_link_state() == "DOWN", "HIGH",
-            "Edge–MES 회선 장애 (Edge 로컬 버퍼링 중)")
+    al.comm(
+        "EDGE-MES",
+        "EDGE-MES",
+        twin.edge.mes_link_state() == "DOWN",
+        "HIGH",
+        "Edge–MES 회선 장애 (Edge 로컬 버퍼링 중)",
+    )
 
 
 def plc_labels(twin: Twin, plc_id: str) -> dict[int, dict[str, Any]]:
@@ -186,12 +263,27 @@ def plc_labels(twin: Twin, plc_id: str) -> dict[int, dict[str, Any]]:
         for it in e.items:
             for w in range(it.words):
                 suffix = "" if it.words == 1 else ("(상위)" if w == 0 else "(하위)")
-                out[base + 2 + off + w] = {"code": code, "field": it.name + suffix, "kind": "value", "type": it.type,
-                                           "scale": it.scale, "unit": it.unit, "word": w, "words": it.words}
+                out[base + 2 + off + w] = {
+                    "code": code,
+                    "field": it.name + suffix,
+                    "kind": "value",
+                    "type": it.type,
+                    "scale": it.scale,
+                    "unit": it.unit,
+                    "word": w,
+                    "words": it.words,
+                }
             off += it.words
         out[base + 8] = {"code": code, "field": "갱신카운터", "kind": "counter"}
     d = twin.cfg.plc_map.diag_base
-    names = ["하트비트", "버스 상태 비트", "Slave 하트비트 미러", "스캔시간(ms)", "정상 장비 수", "Slave 링크 상태"]
+    names = [
+        "하트비트",
+        "버스 상태 비트",
+        "Slave 하트비트 미러",
+        "스캔시간(ms)",
+        "정상 장비 수",
+        "Slave 링크 상태",
+    ]
     for i, n in enumerate(names):
         if plc_id == "SLAVE" and i in (2, 5):
             continue

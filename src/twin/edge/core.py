@@ -41,18 +41,20 @@ def to_raw_items(s: Sample) -> list[dict[str, Any]]:
     for it in s.equip.items:
         if it.key not in s.values:
             continue
-        out.append({
-            "equip_code": s.equip.code,
-            "item_key": it.key,
-            "tag_addr": s.tag_addrs.get(it.key, ""),
-            "data_type": it.data_type,
-            "raw_value": fmt_value(s.values[it.key], it),
-            "unit_cd": it.unit,
-            "comm_type": s.equip.comm_type,
-            "target_table": s.equip.target,
-            "resend_yn": "N",
-            "collect_dt": iso(s.collect_dt),
-        })
+        out.append(
+            {
+                "equip_code": s.equip.code,
+                "item_key": it.key,
+                "tag_addr": s.tag_addrs.get(it.key, ""),
+                "data_type": it.data_type,
+                "raw_value": fmt_value(s.values[it.key], it),
+                "unit_cd": it.unit,
+                "comm_type": s.equip.comm_type,
+                "target_table": s.equip.target,
+                "resend_yn": "N",
+                "collect_dt": iso(s.collect_dt),
+            }
+        )
     return out
 
 
@@ -75,7 +77,9 @@ class NoiseFilter:
                 keep[it.key] = v
             else:
                 self.filtered[s.equip.code] = self.filtered.get(s.equip.code, 0) + 1
-                self.recent.append({"equip": s.equip.code, "key": it.key, "value": v, "ts": iso(s.collect_dt)})
+                self.recent.append(
+                    {"equip": s.equip.code, "key": it.key, "value": v, "ts": iso(s.collect_dt)}
+                )
                 del self.recent[:-50]
         s.values = keep
         return s
@@ -116,7 +120,9 @@ class Buffer:
         return int(row[0]) if row else 0
 
     def _bump(self, k: str, n: int = 1) -> int:
-        self.db.execute("INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO UPDATE SET v = v + ?", (k, n, n))
+        self.db.execute(
+            "INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO UPDATE SET v = v + ?", (k, n, n)
+        )
         return self._meta(k)
 
     def enqueue(self, items: list[dict[str, Any]], priority: int, buffered: bool) -> list[str]:
@@ -133,7 +139,13 @@ class Buffer:
                 ids.append(it["msg_id"])
             self.db.execute(
                 "INSERT INTO buffer(priority, created_at, buffered, n_items, payload) VALUES(?,?,?,?,?)",
-                (priority, time.time(), 1 if buffered else 0, len(items), json.dumps(items, ensure_ascii=False)),
+                (
+                    priority,
+                    time.time(),
+                    1 if buffered else 0,
+                    len(items),
+                    json.dumps(items, ensure_ascii=False),
+                ),
             )
             self.db.execute("COMMIT")
         except Exception:
@@ -144,9 +156,11 @@ class Buffer:
     def next_batch(self, max_items: int) -> list[tuple[int, int, int, list[dict[str, Any]]]]:
         """(행 id, attempts, buffered, 항목들) — 우선순위 → 입력 순서."""
         rows = self.db.execute(
-            "SELECT id, attempts, buffered, n_items, payload FROM buffer ORDER BY priority, id LIMIT ?", (max_items,)
+            "SELECT id, attempts, buffered, n_items, payload FROM buffer ORDER BY priority, id LIMIT ?",
+            (max_items,),
         ).fetchall()
-        out, total = [], 0
+        out: list[tuple[int, int, int, list[dict[str, Any]]]] = []
+        total = 0
         for rid, att, buf, n, payload in rows:
             if out and total + n > max_items:
                 break
@@ -166,7 +180,9 @@ class Buffer:
 
     def purge(self, retention_hours: float) -> int:
         cut = time.time() - retention_hours * 3600
-        rows = self.db.execute("SELECT COALESCE(SUM(n_items),0) FROM buffer WHERE created_at < ?", (cut,)).fetchone()
+        rows = self.db.execute(
+            "SELECT COALESCE(SUM(n_items),0) FROM buffer WHERE created_at < ?", (cut,)
+        ).fetchone()
         n = int(rows[0])
         if n:
             self.db.execute("DELETE FROM buffer WHERE created_at < ?", (cut,))

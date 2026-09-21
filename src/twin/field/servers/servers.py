@@ -96,8 +96,15 @@ def _crc_corrupt(faults: FaultManager, code: str, rng: Any) -> bool:
 class RtuBusServer(_TcpServerBase):
     """RS-485 버스 하나. 한 포트에 여러 slave를 두고 반이중으로 한 번에 한 요청만 처리한다."""
 
-    def __init__(self, bus_id: str, host: str, port: int, devices: dict[int, DeviceModel], faults: FaultManager,
-                 baud: int) -> None:
+    def __init__(
+        self,
+        bus_id: str,
+        host: str,
+        port: int,
+        devices: dict[int, DeviceModel],
+        faults: FaultManager,
+        baud: int,
+    ) -> None:
         super().__init__(host, port)
         self.bus_id = bus_id
         self.devices = devices

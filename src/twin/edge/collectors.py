@@ -129,7 +129,11 @@ class PlcReader:
         if self.plc_state() == "DOWN":
             return "STALE"
         stale_s = max(e.poll_ms / 1000, self.poll_s) * self.stale_factor + 1.0
-        if st["counter"] is not None and time.monotonic() - st["changed"] > stale_s and st["plc_status"] == STATUS_OK:
+        if (
+            st["counter"] is not None
+            and time.monotonic() - st["changed"] > stale_s
+            and st["plc_status"] == STATUS_OK
+        ):
             return "STALE"
         return STATUS_NAMES.get(st["plc_status"], "DOWN")
 
@@ -194,7 +198,9 @@ class ModbusTcpDriver(DirectDriver):
                     break
                 except ModbusError as exc:
                     self.diag.attempt(False, None, exc.kind)
-                    self.diag.add_frame(self.link.last_tx, self.link.last_rx or "(응답 없음)", exc.kind.upper(), None)
+                    self.diag.add_frame(
+                        self.link.last_tx, self.link.last_rx or "(응답 없음)", exc.kind.upper(), None
+                    )
             if res is None:
                 self.diag.poll(False)
                 return
@@ -224,7 +230,7 @@ class AsciiScaleDriver(DirectDriver):
     async def _conn(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         if self._w is None or self._w.is_closing():
             self._r, self._w = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), 1.0)
-        assert self._r is not None
+        assert self._r is not None and self._w is not None
         return self._r, self._w
 
     async def poll(self) -> None:
@@ -288,12 +294,17 @@ class OpcUaDriver(DirectDriver):
         self.nodes: dict[str, Any] = {}
         self.sub: Any = None
         self._changed = asyncio.Event()
-        for name in ("asyncua", "asyncua.client", "asyncua.common", "asyncua.client.ua_client",
-                     "asyncua.uaprotocol"):
+        for name in (
+            "asyncua",
+            "asyncua.client",
+            "asyncua.common",
+            "asyncua.client.ua_client",
+            "asyncua.uaprotocol",
+        ):
             logging.getLogger(name).setLevel(logging.CRITICAL)
 
     async def _connect(self) -> None:
-        from asyncua import Client
+        from asyncua.client.client import Client
 
         client = Client(self.url, timeout=2)
         await asyncio.wait_for(client.connect(), 3)
@@ -335,8 +346,12 @@ class OpcUaDriver(DirectDriver):
             values[it.key] = float(v)
         rtt = (time.monotonic() - t0) * 1000
         self.diag.attempt(True, rtt, None)
-        self.diag.add_frame("Read " + ",".join(it.node or "" for it in self.equip.items),
-                            ", ".join(f"{k}={v:g}" for k, v in values.items()), "OK", round(rtt, 1))
+        self.diag.add_frame(
+            "Read " + ",".join(it.node or "" for it in self.equip.items),
+            ", ".join(f"{k}={v:g}" for k, v in values.items()),
+            "OK",
+            round(rtt, 1),
+        )
         self.diag.poll(True)
         self._emit(values, {it.key: f"OPCUA.{it.node}" for it in self.equip.items})
 
@@ -357,6 +372,8 @@ class _SubHandler:
 
 def make_driver(e: Equip, cfg: TwinConfig, emit: Emit) -> DirectDriver:
     kinds: dict[str, type[DirectDriver]] = {
-        "edge_modbus_tcp": ModbusTcpDriver, "edge_ascii": AsciiScaleDriver, "edge_opcua": OpcUaDriver,
+        "edge_modbus_tcp": ModbusTcpDriver,
+        "edge_ascii": AsciiScaleDriver,
+        "edge_opcua": OpcUaDriver,
     }
     return kinds[e.kind](e, cfg, emit)
