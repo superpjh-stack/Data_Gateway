@@ -1,0 +1,57 @@
+# 기준 이탈 알람 (spec 6.3). basis: 설계 = 산출물 확정값, 가정 = 현장 확인 필요
+- id: CCP-SAN
+  item: 소독수농도
+  equip: [SAN-01]
+  key: ppm
+  low: 10.0
+  unit: ppm
+  hold_sec: 60            # 지속조건 [가정]
+  severity: HIGH
+  basis: 설계
+- id: CCP-SALT
+  item: 절임염도
+  equip: [SAL-01, SAL-02]
+  key: salinity
+  band: 1.0               # 절임통 목표(9/12/13 %) ±1.0 %p [가정]
+  unit: "%"
+  hold_sec: 300
+  severity: MEDIUM
+  basis: 가정
+- id: CCP-COLD
+  item: 냉장온도
+  equip: [TC-01, TC-02, TC-03]
+  key: pv
+  low: -1.0
+  high: 5.0
+  unit: "℃"
+  hold_sec: 300
+  severity: HIGH
+  basis: 가정
+- id: CCP-FROZEN
+  item: 냉동온도
+  equip: [TC-04]
+  key: pv
+  high: -18.0
+  unit: "℃"
+  hold_sec: 600
+  severity: HIGH
+  basis: 가정
+- id: CCP-METAL
+  item: 금속검출
+  equip: [MD-01]
+  key: ng_cnt
+  ng_immediate: true
+  unit: EA
+  hold_sec: 0
+  severity: CRITICAL
+  basis: 설계
+- id: CCP-WEIGHT
+  item: 포장중량
+  equip: [SCALE-01]
+  key: weight
+  std: 10.0               # 기준 중량 kg [가정]
+  band_pct: 2.0
+  unit: kg
+  hold_sec: 0
+  severity: LOW
+  basis: 가정

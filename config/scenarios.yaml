@@ -1,0 +1,9 @@
+# 시나리오 프리셋 (spec 8장). at_s = 시작 후 지연(초)
+HACCP 소독수 이탈:
+  - {target: SAN-01, type: value_spike, params: {key: ppm, value: 8.5}, duration_s: 180}
+냉장고 문 열림:
+  - {target: TC-01, type: value_spike, params: {key: pv, value: 7.0}, duration_s: 360}
+Master 버스 M2 단선:
+  - {target: M2, type: bus_cut, params: {}, duration_s: 120}
+MES 회선 10분 장애:
+  - {target: EDGE-MES, type: mes_link_down, params: {}, duration_s: 600}

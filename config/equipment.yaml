@@ -1,0 +1,153 @@
+# 수집 대상 장비 22개 (spec 2.1). assumed = 현장 실사로 확정할 항목 (problem.md Q1~Q10)
+# via 형식
+#   {bus: M1, slave: 1}              RS-485 → PLC 스캐너
+#   {plc_tcp: MASTER, link: san, unit: 1}  Ethernet 장비 → PLC가 Modbus TCP로 읽음
+#   {edge: modbus_tcp|opcua|ascii, link: fill, unit: 1}  Edge 직접 수집
+# link는 runtime.yaml ports 키. 실장비는 endpoint로 덮어쓴다 (예: endpoint: /dev/tty.usbserial-1)
+
+plcs:
+  MASTER: {model: XBC-DN32H, name: PLC 제어반 Master, area: 세척·절임·냉장}
+  SLAVE: {model: XBC-DN32H, name: PLC 제어반 Slave, area: 절단/전처리}
+
+buses:
+  M1: {plc: MASTER, link: bus_M1, baud: 9600, timeout_ms: 300, retries: 2}
+  M2: {plc: MASTER, link: bus_M2, baud: 9600, timeout_ms: 300, retries: 2}
+  S1: {plc: SLAVE, link: bus_S1, baud: 9600, timeout_ms: 300, retries: 2}
+
+item_sets:
+  brine: &brine
+    - {key: salinity, name: 염도, reg: IR30001, type: uint16, scale: 0.01, unit: PCT, data_type: 염도, range: [0, 30], max_step: 3}
+    - {key: water_temp, name: 염수온도, reg: IR30002, type: int16, scale: 0.1, unit: DEGC, data_type: 온도, range: [-10, 50]}
+    - {key: tank_no, name: 측정절임통, reg: IR30003, type: uint16, scale: 1, unit: "NO", data_type: 위치, range: [1, 8]}
+    - {key: sensor_state, name: 센서상태, reg: IR30004, type: uint16, scale: 1, unit: CODE, data_type: 상태}
+  thd: &thd
+    - {key: temp, name: 온도, reg: IR30001, type: int16, scale: 0.1, unit: DEGC, data_type: 온도, range: [-40, 80], max_step: 15}
+    - {key: humid, name: 습도, reg: IR30002, type: uint16, scale: 0.1, unit: PCT_RH, data_type: 습도, range: [0, 100], max_step: 30}
+  fox: &fox
+    - {key: pv, name: 현재온도, reg: IR30001, type: int16, scale: 0.1, unit: DEGC, data_type: 온도, range: [-40, 80], max_step: 20}
+    - {key: sv, name: 설정온도, reg: HR40001, type: int16, scale: 0.1, unit: DEGC, data_type: 온도, range: [-40, 80]}
+    - {key: out_state, name: 출력상태, reg: IR30002, type: uint16, scale: 1, unit: BITS, data_type: 가동상태}
+  metal: &metal
+    - {key: result, name: 최근판정, reg: IR30001, type: uint16, scale: 1, unit: CODE, data_type: 검출결과}
+    - {key: inspect_cnt, name: 누적검사수량, reg: IR30002, type: uint32, scale: 1, unit: EA, data_type: 수량}
+    - {key: ng_cnt, name: 누적불합격수량, reg: IR30004, type: uint32, scale: 1, unit: EA, data_type: 수량}
+    - {key: run, name: 가동상태, reg: IR30006, type: uint16, scale: 1, unit: CODE, data_type: 가동상태}
+  sanitizer: &sanitizer
+    - {key: ppm, name: 소독수농도, reg: HR40001, type: uint16, scale: 0.01, unit: PPM, data_type: 농도(ppm), range: [0, 200], max_step: 50}
+    - {key: contact_min, name: 접촉시간, reg: HR40002, type: uint16, scale: 0.1, unit: MIN, data_type: 시간, range: [0, 120]}
+    - {key: dosing_rate, name: 투입비율, reg: HR40003, type: uint16, scale: 0.01, unit: PCT, data_type: 비율, range: [0, 100]}
+    - {key: run, name: 가동상태, reg: HR40004, type: uint16, scale: 1, unit: CODE, data_type: 가동상태}
+  filler: &filler
+    - {key: speed, name: 작업속도, reg: HR40001, type: uint16, scale: 1, unit: EA_MIN, data_type: 속도, range: [0, 500]}
+    - {key: set_volume, name: 세팅양, reg: HR40002, type: uint16, scale: 0.1, unit: G, data_type: 세팅값, range: [0, 5000]}
+    - {key: run, name: 가동상태, reg: HR40003, type: uint16, scale: 1, unit: CODE, data_type: 가동상태}
+    - {key: count, name: 누적처리수량, reg: HR40004, type: uint32, scale: 1, unit: EA, data_type: 수량}
+
+equipment:
+  # ── 세척/절임: 염도센서 2식 ──
+  - code: SAL-01
+    name: 염도센서 1 (절임통 1~4)
+    process: 세척/절임
+    type: 염도센서
+    via: {bus: M1, slave: 1}
+    poll_ms: 5000
+    target: SLT_SALINITY_LOG
+    items: *brine
+    sim: {model: brine_sensor, tanks: [1, 2, 3, 4], switch_sec: 120}
+    assumed: [통신 프로토콜, 레지스터, 수집 주기, 절임통 매핑]
+  - code: SAL-02
+    name: 염도센서 2 (절임통 5~8)
+    process: 세척/절임
+    type: 염도센서
+    via: {bus: M1, slave: 2}
+    poll_ms: 5000
+    target: SLT_SALINITY_LOG
+    items: *brine
+    sim: {model: brine_sensor, tanks: [5, 6, 7, 8], switch_sec: 120}
+    assumed: [통신 프로토콜, 레지스터, 수집 주기, 절임통 매핑]
+
+  # ── 온습도센서 10식 THD-WD1-T ──
+  - {code: THD-01, name: 온습도센서 (입고 1), process: 입고/보관, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 1}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 8, base_humid: 85}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-02, name: 온습도센서 (입고 2), process: 입고/보관, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 2}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 8, base_humid: 84}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-03, name: 온습도센서 (입고 3), process: 입고/보관, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 3}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 9, base_humid: 83}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-04, name: 온습도센서 (전처리 1), process: 절단/전처리, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 4}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 14, base_humid: 78}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-05, name: 온습도센서 (전처리 2), process: 절단/전처리, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 5}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 14, base_humid: 77}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-06, name: 온습도센서 (전처리 3), process: 절단/전처리, type: 온습도센서, model: THD-WD1-T, via: {bus: S1, slave: 6}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 15, base_humid: 76}, assumed: [Modbus RTU 여부, 레지스터, Slave 배분]}
+  - {code: THD-07, name: 온습도센서 (세척), process: 세척/절임, type: 온습도센서, model: THD-WD1-T, via: {bus: M1, slave: 7}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 15, base_humid: 90}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: THD-08, name: 온습도센서 (절임), process: 세척/절임, type: 온습도센서, model: THD-WD1-T, via: {bus: M1, slave: 8}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 12, base_humid: 88}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: THD-09, name: 온습도센서 (혼합), process: 혼합(버무림), type: 온습도센서, model: THD-WD1-T, via: {bus: M1, slave: 9}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 13, base_humid: 75}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: THD-10, name: 온습도센서 (포장출고), process: 포장/출고, type: 온습도센서, model: THD-WD1-T, via: {bus: M1, slave: 10}, poll_ms: 10000, target: AGE_ENV_LOG, items: *thd, sim: {model: thd, base_temp: 11, base_humid: 70}, assumed: [Modbus RTU 여부, 레지스터]}
+
+  # ── 온도조절기 4식 FOX-2003CC ──
+  - {code: TC-01, name: 온도조절기 (숙성 냉장고), process: 냉장·숙성, type: 온도조절기, model: FOX-2003CC, via: {bus: M2, slave: 1}, poll_ms: 10000, target: AGE_ENV_LOG, items: *fox, sim: {model: fox_controller, sv: 2.0, hysteresis: 1.5}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: TC-02, name: 온도조절기 (원품 냉장고), process: 입고/보관, type: 온도조절기, model: FOX-2003CC, via: {bus: M2, slave: 2}, poll_ms: 10000, target: AGE_ENV_LOG, items: *fox, sim: {model: fox_controller, sv: 2.0, hysteresis: 1.5}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: TC-03, name: 온도조절기 (탈수 냉장고), process: 탈수, type: 온도조절기, model: FOX-2003CC, via: {bus: M2, slave: 3}, poll_ms: 10000, target: AGE_ENV_LOG, items: *fox, sim: {model: fox_controller, sv: 3.0, hysteresis: 1.5}, assumed: [Modbus RTU 여부, 레지스터]}
+  - {code: TC-04, name: 온도조절기 (냉동고), process: 입고/보관, type: 온도조절기, model: FOX-2003CC, via: {bus: M2, slave: 4}, poll_ms: 10000, target: AGE_ENV_LOG, items: *fox, sim: {model: fox_controller, sv: -21.0, hysteresis: 2.0}, assumed: [Modbus RTU 여부, 레지스터, 냉동고 여부]}
+
+  # ── 금속검출기 ──
+  - code: MD-01
+    name: 금속검출기
+    process: 금속검출
+    type: 금속검출기
+    via: {bus: M2, slave: 11}
+    poll_ms: 1000
+    target: QUA_METAL_LOG
+    items: *metal
+    sim: {model: metal_detector, rate_per_s: 0.3, ng_prob: 0.002}
+    assumed: [대수, 통신 지원, 레지스터, 수집 주기]
+
+  # ── 소독수 공급장치 (XBL-EMTA600 경유) ──
+  - code: SAN-01
+    name: 소독수 공급장치
+    process: 세척/절임
+    type: 소독수 Interface Module
+    model: XBL-EMTA600
+    via: {plc_tcp: MASTER, link: san, unit: 1}
+    poll_ms: 5000
+    delay_ms: 250
+    target: WSH_SANITIZER_LOG
+    items: *sanitizer
+    sim: {model: sanitizer, base_ppm: 10.6}
+    assumed: [Modbus TCP 여부, 레지스터]
+
+  # ── Edge 직결 ──
+  - code: PKG-01
+    name: 아이스박스자동포장기
+    process: 포장/출고
+    type: 자동포장기
+    model: KF 100
+    via: {edge: opcua, link: opcua}
+    poll_ms: 10000
+    target: PKG_TAPING_LOG
+    items:
+      - {key: pack_count, name: 포장완료수량, node: "ns=2;s=KF100.PackCount", type: uint32, scale: 1, unit: BOX, data_type: 수량}
+      - {key: running, name: 가동상태, node: "ns=2;s=KF100.Running", type: bool, scale: 1, unit: CODE, data_type: 가동상태}
+      - {key: run_minutes, name: 누적가동시간, node: "ns=2;s=KF100.RunMinutes", type: float, scale: 1, unit: MIN, data_type: 시간}
+      - {key: alarm_code, name: 설비알람, node: "ns=2;s=KF100.AlarmCode", type: uint16, scale: 1, unit: CODE, data_type: 상태}
+    sim: {model: taping_machine, boxes_per_min: 1.0, stop_prob: 0.002}
+    assumed: [OPC-UA 노드 ID]
+  - code: SCALE-01
+    name: 중량 저울
+    process: 포장/출고
+    type: 중량저울
+    via: {edge: ascii, link: scale}
+    poll_ms: 1000
+    delay_ms: 250
+    target: PKG_WEIGHT_INSP
+    items:
+      - {key: weight, name: 중량, type: float, scale: 1, unit: KG, data_type: 중량, range: [0, 60]}
+    sim: {model: scale, std_kg: 10.0, sigma_kg: 0.04}
+    assumed: [대수, 통신 방식(RS-232), 전문 형식]
+  - {code: FILL-01, name: 충진기, process: 혼합(버무림), type: 충진기, via: {edge: modbus_tcp, link: fill, unit: 1}, poll_ms: 5000, delay_ms: 250, target: MIX_FILLER_LOG, items: *filler, sim: {model: filler, speed: 32, set_volume: 500}, assumed: [통신 방식, 레지스터]}
+  - {code: STUFF-01, name: 속넣기기계, process: 혼합(버무림), type: 속넣기기계, via: {edge: modbus_tcp, link: stuff, unit: 1}, poll_ms: 5000, delay_ms: 250, target: MIX_FILLER_LOG, items: *filler, sim: {model: filler, speed: 24, set_volume: 350}, assumed: [통신 방식, 레지스터]}
+
+# 절임통 8기 (SF-AD1: 염도 9·12·13 %, 24 h/48 h). offset_h = 트윈 기동 시점의 경과시간 [가정]
+tanks:
+  1: {target: 12.0, hours: 24, offset_h: 3}
+  2: {target: 12.0, hours: 24, offset_h: 11}
+  3: {target: 13.0, hours: 48, offset_h: 20}
+  4: {target: 9.0, hours: 24, offset_h: 6}
+  5: {target: 12.0, hours: 24, offset_h: 15}
+  6: {target: 13.0, hours: 48, offset_h: 30}
+  7: {target: 9.0, hours: 24, offset_h: 1}
+  8: {target: 12.0, hours: 24, offset_h: 18}

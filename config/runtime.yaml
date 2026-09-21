@@ -1,0 +1,31 @@
+# 실행 설정. 포트 배정은 docs/DECISIONS.md D-001
+seed: 20260921
+time_scale: 1.0          # 공정 모델 변화 속도에만 적용 (D-004)
+host: 127.0.0.1
+ports:
+  bus_M1: 7001
+  bus_M2: 7002
+  bus_S1: 7003
+  scale: 7010
+  san: 5031
+  fill: 5032
+  stuff: 5033
+  opcua: 4840
+  plc_MASTER: 5020
+  plc_SLAVE: 5021
+  mes_http: 8000
+edge:
+  id: edge01
+  plc_poll_ms: 1000
+  plc_timeout_ms: 800
+  batch_max: 500
+  retention_hours: 72     # [가정] Q2
+  backoff_max_s: 30
+  stale_factor: 3
+  send_interval_ms: 200
+field:
+  tick_ms: 1000
+ws:
+  flush_ms: 200           # 장비별 초당 최대 5건
+data_dir: data
+log_level: INFO
