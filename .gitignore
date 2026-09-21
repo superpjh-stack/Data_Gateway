@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dashboard/node_modules/
+dashboard/dist/
+dashboard/test-results/
+dashboard/playwright-report/
