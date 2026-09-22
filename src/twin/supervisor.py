@@ -27,7 +27,7 @@ log = get_logger("supervisor")
 class Twin:
     """디지털 트윈 전체. 테스트는 이 객체를 직접 띄운다."""
 
-    def __init__(self, cfg: TwinConfig, *, serve_static: bool = True) -> None:
+    def __init__(self, cfg: TwinConfig, *, serve_static: bool = True, http_host: str | None = None) -> None:
         self.cfg = cfg
         targets: dict[str, list[str]] = {
             "equip": [e.code for e in cfg.equipment],
@@ -43,6 +43,8 @@ class Twin:
         self.mes = MesStore(cfg, self.hub.publish)
         self.edge = EdgeCollector(cfg, self.faults)
         self.serve_static = serve_static
+        # 대시보드·API만 외부에 연다. 계층 사이 프로토콜 포트는 runtime.host(기본 127.0.0.1)에 남는다
+        self.http_host = http_host or cfg.runtime.host
         self.started_at = time.monotonic()
         self._server: uvicorn.Server | None = None
         self._tasks: list[asyncio.Task[Any]] = []
@@ -58,7 +60,7 @@ class Twin:
         port = self.cfg.port("mes_http")
         config = uvicorn.Config(
             app,
-            host=self.cfg.runtime.host,
+            host=self.http_host,
             port=port,
             log_level="warning",
             lifespan="off",
@@ -170,7 +172,7 @@ async def _main(args: argparse.Namespace) -> None:
         ):
             with contextlib.suppress(FileNotFoundError):
                 (Path(cfg.runtime.data_dir) / f).unlink()
-    twin = Twin(cfg)
+    twin = Twin(cfg, http_host=args.http_host)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -187,6 +189,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="임진강김치 PLC 데이터수집 디지털 트윈")
     ap.add_argument("--config", default="config")
     ap.add_argument("--fresh", action="store_true", help="MES·Edge DB를 지우고 시작")
+    ap.add_argument("--http-host", default=None, help="대시보드·API 바인드 주소 (컨테이너 배포 시 0.0.0.0)")
     asyncio.run(_main(ap.parse_args()))
 
 

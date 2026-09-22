@@ -1,0 +1,16 @@
+.git
+.venv
+data
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+dashboard/node_modules
+dashboard/dist
+dashboard/test-results
+dashboard/playwright-report
+tests
+docs
+*.md
+!README.md

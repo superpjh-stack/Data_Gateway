@@ -1,0 +1,11 @@
+services:
+  plc-twin:
+    build: .
+    image: limjingang-plc-twin:latest
+    container_name: limjingang-plc-twin
+    ports:
+      - "8025:8000"   # 대시보드·API만 공개. 가상 장비·PLC 포트는 컨테이너 내부 127.0.0.1
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    mem_limit: 512m
