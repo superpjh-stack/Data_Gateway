@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PurgeCard } from '../components/PurgeCard'
 import { Card, DataTable, ErrorLine, PageTitle, Skeleton, ui } from '../components/ui'
 import { fmtTime, unitLabel } from '../lib/format'
 import { usePoll } from '../lib/hooks'
@@ -73,6 +74,7 @@ export default function RawLedger() {
             />
           )}
         </Card>
+        <div className={P.stack}>
         <Card title="분배 테이블 행 수">
           {!stats ? (
             <Skeleton height={200} />
@@ -91,6 +93,8 @@ export default function RawLedger() {
             </div>
           )}
         </Card>
+        <PurgeCard />
+        </div>
       </div>
     </>
   )

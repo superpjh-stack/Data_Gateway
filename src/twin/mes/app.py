@@ -303,6 +303,23 @@ def create_app(twin: Twin) -> FastAPI:
             "buses": {k: v.model_dump() for k, v in cfg.buses.items()},
         }
 
+    # ── DB 일일 정리 (D-017) ──
+    @app.get("/api/admin/purge")
+    async def purge_status() -> dict[str, Any]:
+        pc = cfg.runtime.mes.purge
+        return {
+            "enabled": pc.enabled,
+            "at": pc.at,
+            "keep_hours": pc.keep_hours,
+            "next": twin.next_purge(),
+            "db_bytes": twin.mes.db_bytes(),
+            "history": twin.mes.purge_history(),
+        }
+
+    @app.post("/api/admin/purge")
+    async def purge_run() -> dict[str, Any]:
+        return twin.purge_now("MANUAL")
+
     # ── WebSocket ──
     @app.websocket("/ws")
     async def ws(sock: WebSocket) -> None:

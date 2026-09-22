@@ -88,10 +88,26 @@ buses:
 | Edge 버퍼 보존 기간 | `config/runtime.yaml` `edge.retention_hours` |
 | 저울·충진기·속넣기기계 통신 방식 | `config/equipment.yaml` SCALE-01, FILL-01, STUFF-01 |
 
+## DB 일일 정리
+
+수집 데이터가 하루 약 260 MB씩 쌓이므로 매일 KST 03:00에 정리합니다(D-017). 설정은 `config/runtime.yaml`에 있습니다.
+
+```yaml
+mes:
+  purge:
+    enabled: true
+    at: "03:00"      # 매일 정리 시각 (KST)
+    keep_hours: 0    # 0 = 그 이전 수집 데이터 전부 삭제, 24 = 최근 하루 보존
+    vacuum: true     # 삭제 후 파일 크기 축소
+```
+
+- 기준정보, 진행 중 절임 운영, 열린 가동 구간, 해제되지 않은 알람은 남깁니다. 수집은 멈추지 않고 곧바로 다시 쌓입니다.
+- 이력은 `TWIN_PURGE_LOG`, 상태는 `GET /api/admin/purge`, 수동 실행은 `POST /api/admin/purge` 또는 대시보드 **수집원장 → DB 일일 정리 → 지금 정리**(두 번 눌러 확인)입니다.
+
 ## 테스트
 
 ```bash
-make test   # 린트·타입 + pytest 72건(약 9분) + vitest 12건
+make test   # 린트·타입 + pytest 76건(약 10분) + vitest 12건
 make e2e    # Playwright 2건
 ```
 

@@ -158,6 +158,19 @@ class WsCfg(_Strict):
     flush_ms: int = 200
 
 
+class PurgeCfg(_Strict):
+    """MES DB 일일 정리 (D-017)."""
+
+    enabled: bool = True
+    at: str = Field("03:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")  # KST 매일 이 시각
+    keep_hours: float = Field(0.0, ge=0)  # 0 = 정리 시각 이전 수집 데이터를 모두 지운다
+    vacuum: bool = True  # 삭제 후 파일 크기를 실제로 줄인다
+
+
+class MesCfg(_Strict):
+    purge: PurgeCfg = PurgeCfg()
+
+
 class Runtime(_Strict):
     seed: int = 0
     time_scale: float = 1.0
@@ -166,6 +179,7 @@ class Runtime(_Strict):
     edge: EdgeCfg = EdgeCfg()
     field: FieldCfg = FieldCfg()
     ws: WsCfg = WsCfg()
+    mes: MesCfg = MesCfg()
     data_dir: str = "data"
     log_level: str = "INFO"
 

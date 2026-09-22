@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +44,13 @@ DIST_TABLES = [
 WORK_ORDER_ID = 1
 LOT_NO = "L260921-01"
 ITEM_ID = 1
+
+
+def next_purge_at(now: datetime, at: str) -> datetime:
+    """now 이후 처음 오는 'HH:MM'(now와 같은 시간대)."""
+    hh, mm = (int(x) for x in at.split(":"))
+    t = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return t if t > now else t + timedelta(days=1)
 
 
 def plc_tag(cfg: TwinConfig, e: Equip) -> str:
@@ -452,6 +459,95 @@ class MesStore:
 
     def table_counts(self) -> dict[str, int]:
         return {t: int(self.db.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]) for t in DIST_TABLES}  # noqa: S608
+
+    # ── 일일 정리 (D-017) ──
+    def db_bytes(self) -> int:
+        base = Path(self.cfg.runtime.data_dir) / "mes.db"
+        return sum(p.stat().st_size for p in (base, base.with_name("mes.db-wal")) if p.exists())
+
+    def purge(self, cutoff: str, trigger: str = "SCHEDULE", vacuum: bool = True) -> dict[str, Any]:
+        """cutoff 이전에 수집된 설비 데이터를 지우고 파일 크기를 줄인다.
+
+        기준정보(BAS_*, 작업지시), 진행 중인 절임 운영·가동 구간, 해제되지 않은 알람,
+        아직 지우지 않은 행이 참조하는 부모 행은 남긴다.
+        """
+        t0 = now_kst()
+        before = self.db_bytes()
+        c = (cutoff,)
+        steps: list[tuple[str, str, tuple[Any, ...]]] = [
+            ("AGE_ENV_ALARM", "DELETE FROM AGE_ENV_ALARM WHERE ALARM_DT < ?", c),
+            (
+                "AGE_ENV_LOG",
+                "DELETE FROM AGE_ENV_LOG WHERE COLLECT_DT < ? AND ENV_LOG_ID NOT IN "
+                "(SELECT ENV_LOG_ID FROM AGE_ENV_ALARM)",
+                c,
+            ),
+            ("SLT_SALINITY_LOG", "DELETE FROM SLT_SALINITY_LOG WHERE MEASURE_DT < ?", c),
+            (
+                "SLT_TANK_OPR",
+                "DELETE FROM SLT_TANK_OPR WHERE TANK_STATUS='완료' AND END_DT < ? AND TANK_OPR_ID NOT IN "
+                "(SELECT TANK_OPR_ID FROM SLT_SALINITY_LOG)",
+                c,
+            ),
+            ("WSH_SANITIZER_LOG", "DELETE FROM WSH_SANITIZER_LOG WHERE COLLECT_DT < ?", c),
+            ("QUA_METAL_LOG", "DELETE FROM QUA_METAL_LOG WHERE COLLECT_DT < ?", c),
+            ("PKG_TAPING_LOG", "DELETE FROM PKG_TAPING_LOG WHERE COLLECT_DT < ?", c),
+            ("PKG_WEIGHT_INSP", "DELETE FROM PKG_WEIGHT_INSP WHERE INSPECT_DT < ?", c),
+            ("MIX_FILLER_LOG", "DELETE FROM MIX_FILLER_LOG WHERE COLLECT_DT < ?", c),
+            ("EQP_RUN_LOG", "DELETE FROM EQP_RUN_LOG WHERE END_DT IS NOT NULL AND END_DT < ?", c),
+            ("TWIN_ALARM", "DELETE FROM TWIN_ALARM WHERE STATE='CLEARED' AND CLEARED_DT < ?", c),
+            ("IF_SENSOR_RAW", "DELETE FROM IF_SENSOR_RAW WHERE COLLECT_DT < ?", c),
+        ]
+        deleted: dict[str, int] = {}
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            for table, sql, params in steps:
+                deleted[table] = self.db.execute(sql, params).rowcount
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+        if vacuum:
+            # WAL을 본 파일로 합친 뒤 VACUUM해야 빈 페이지가 디스크에서 빠진다
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self.db.execute("VACUUM")
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        after = self.db_bytes()
+        elapsed = int((now_kst() - t0).total_seconds() * 1000)
+        total = sum(deleted.values())
+        self.db.execute(
+            "INSERT INTO TWIN_PURGE_LOG(TRIGGER_TYPE, STARTED_DT, CUTOFF_DT, DELETED_JSON, DELETED_TOTAL, DB_BYTES_BEFORE,"
+            " DB_BYTES_AFTER, ELAPSED_MS) VALUES(?,?,?,?,?,?,?,?)",
+            (
+                trigger,
+                iso(t0),
+                cutoff,
+                json.dumps(deleted, ensure_ascii=False),
+                total,
+                before,
+                after,
+                elapsed,
+            ),
+        )
+        out = {
+            "trigger": trigger,
+            "started": iso(t0),
+            "cutoff": cutoff,
+            "deleted": deleted,
+            "deleted_total": total,
+            "db_bytes_before": before,
+            "db_bytes_after": after,
+            "elapsed_ms": elapsed,
+        }
+        log.info("mes_purged", equip="MES", **{k: v for k, v in out.items() if k != "deleted"})
+        self.publish({"type": "purge", **out})
+        return out
+
+    def purge_history(self, limit: int = 30) -> list[dict[str, Any]]:
+        rows = self.rows("SELECT * FROM TWIN_PURGE_LOG ORDER BY PURGE_ID DESC LIMIT ?", (limit,))
+        for r in rows:
+            r["DELETED_JSON"] = json.loads(r["DELETED_JSON"])
+        return rows
 
     def close(self) -> None:
         self.db.close()

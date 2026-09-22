@@ -74,3 +74,10 @@
 ## D-016 React 19 사용
 - 맥락: metaprompt는 React 18을 제시했으나 `npm create vite` 기본 템플릿이 React 19
 - 결정: React 19 유지. 사용한 API(훅, react-router 7, zustand 5)는 18과 호환 범위
+
+## D-017 MES DB 일일 정리 (매일 03:00)
+- 맥락: 배포 서버에서 1.5시간에 mes.db 16.6 MB(하루 약 260 MB) 증가. 그대로 두면 디스크가 찬다
+- 결정: 매일 `runtime.mes.purge.at`(KST, 기본 03:00)에 그 시각 이전 수집 데이터를 지우고 `VACUUM`으로 파일을 줄인다. `keep_hours`로 최근 N시간을 남길 수 있다(기본 0 = 전부 정리). 수집은 멈추지 않고 곧바로 다시 적재된다
+- 남기는 것: 기준정보(BAS_EQUIP·BAS_CCP_STD·ORD_WORK_ORDER), 진행 중 절임 운영(SLT_TANK_OPR 절임중), 열린 가동 구간(EQP_RUN_LOG END_DT 없음), 해제되지 않은 알람, 남은 행이 참조하는 부모 행
+- 이력: `TWIN_PURGE_LOG`(테이블별 삭제 수, 정리 전후 파일 크기). 수동 실행 `POST /api/admin/purge`, 대시보드 수집원장 화면의 "DB 일일 정리" 카드
+- 주의: HACCP 증빙으로 수집 이력을 보관해야 하면 `keep_hours`를 늘리거나 정리 전에 외부로 내보내야 한다(v0.2 과제)

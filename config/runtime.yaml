@@ -27,5 +27,11 @@ field:
   tick_ms: 1000
 ws:
   flush_ms: 200           # 장비별 초당 최대 5건
+mes:
+  purge:                  # 수집 데이터 일일 정리 (D-017)
+    enabled: true
+    at: "03:00"           # 매일 KST 03:00
+    keep_hours: 0         # 0 = 정리 시각 이전 수집 데이터 전부 삭제 (예: 24 → 최근 하루는 남김)
+    vacuum: true          # 삭제 후 DB 파일 크기 축소
 data_dir: data
 log_level: INFO

@@ -7,18 +7,19 @@ import asyncio
 import contextlib
 import signal
 import time
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import uvicorn
 
 from twin.common.config import ConfigError, TwinConfig, load_config
-from twin.common.util import get_logger, setup_logging
+from twin.common.util import get_logger, iso, now_kst, setup_logging
 from twin.edge.collector import EdgeCollector
 from twin.field.faults import FaultManager
 from twin.field.simulator import FieldSimulator
 from twin.mes.hub import WsHub
-from twin.mes.store import MesStore
+from twin.mes.store import MesStore, next_purge_at
 from twin.plc.runtime import PlcRuntime
 
 log = get_logger("supervisor")
@@ -76,6 +77,8 @@ class Twin:
         await self.edge.start()
         self._tasks.append(asyncio.create_task(self._reconcile()))
         self._tasks.append(asyncio.create_task(self.hub.run(self)))
+        if self.cfg.runtime.mes.purge.enabled:
+            self._tasks.append(asyncio.create_task(self._daily_purge()))
         self.started_at = time.monotonic()
         log.info("twin_started", equip="*", url=f"http://{self.cfg.runtime.host}:{port}")
 
@@ -119,6 +122,26 @@ class Twin:
             except Exception as exc:
                 log.error("reconcile_error", equip="*", error=repr(exc))
             await asyncio.sleep(0.2)
+
+    def next_purge(self) -> str | None:
+        pc = self.cfg.runtime.mes.purge
+        return iso(next_purge_at(now_kst(), pc.at)) if pc.enabled else None
+
+    def purge_now(self, trigger: str = "MANUAL") -> dict[str, Any]:
+        """keep_hours만 남기고 그 이전 수집 데이터를 지운다."""
+        pc = self.cfg.runtime.mes.purge
+        cutoff = iso(now_kst() - timedelta(hours=pc.keep_hours))
+        return self.mes.purge(cutoff, trigger=trigger, vacuum=pc.vacuum)
+
+    async def _daily_purge(self) -> None:
+        """매일 runtime.mes.purge.at(KST)에 MES 수집 데이터를 정리한다 (D-017)."""
+        while True:
+            at = next_purge_at(now_kst(), self.cfg.runtime.mes.purge.at)
+            await asyncio.sleep(max(1.0, (at - now_kst()).total_seconds()))
+            try:
+                self.purge_now("SCHEDULE")
+            except Exception as exc:  # 정리 실패가 수집을 멈추지 않게
+                log.error("purge_error", equip="MES", error=repr(exc))
 
     async def restart_edge(self) -> None:
         """Edge 프로세스 재시작을 흉내 낸다. 버퍼 DB는 디스크에 남는다 (AC-10)."""

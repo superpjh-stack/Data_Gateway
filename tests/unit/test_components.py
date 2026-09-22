@@ -212,3 +212,28 @@ def test_brine_tank_switch_not_filtered() -> None:
     assert f.apply(_sample("SAL-01", salinity=12.3, tank_no=3)).values["salinity"] == 12.3
     assert f.apply(_sample("SAL-01", salinity=9.1, tank_no=4)).values["salinity"] == 9.1
     assert f.filtered.get("SAL-01", 0) == 0
+
+
+# ── DB 일일 정리 스케줄 (D-017) ──
+def test_next_purge_at_rolls_to_tomorrow() -> None:
+    from datetime import datetime
+
+    from twin.common.util import KST
+    from twin.mes.store import next_purge_at
+
+    assert next_purge_at(datetime(2026, 9, 22, 2, 59, tzinfo=KST), "03:00") == datetime(
+        2026, 9, 22, 3, 0, tzinfo=KST
+    )
+    assert next_purge_at(datetime(2026, 9, 22, 3, 0, tzinfo=KST), "03:00") == datetime(
+        2026, 9, 23, 3, 0, tzinfo=KST
+    )
+    assert next_purge_at(datetime(2026, 12, 31, 23, 30, tzinfo=KST), "00:10") == datetime(
+        2027, 1, 1, 0, 10, tzinfo=KST
+    )
+
+
+def test_purge_time_format_validated() -> None:
+    from twin.common.config import ConfigError, load_config
+
+    with pytest.raises(ConfigError, match=r"runtime.yaml mes.purge.at"):
+        load_config(CONFIG, {"runtime": {"mes": {"purge": {"at": "25:00"}}}})
